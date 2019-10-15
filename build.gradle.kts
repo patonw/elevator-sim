@@ -27,6 +27,20 @@ dependencies {
 
     // Use JUnit test framework
     testImplementation("junit:junit:4.12")
+    testImplementation("org.hamcrest:hamcrest:2.1")
+
+    // Logging
+//    implementation("org.slf4j:slf4j-api:1.7.25")
+    implementation("ch.qos.logback:logback-classic:1.2.3")
+//    implementation("ch.qos.logback:logback-core:1.2.3")
+
+
+    // Functional & reactive programming
+//    implementation("io.vavr:vavr:0.9.3")
+//    implementation("io.reactivex.rxjava2:rxjava:2.2.12")
+
+    // Web server
+    implementation("io.javalin:javalin:3.5.0")
 }
 
 application {

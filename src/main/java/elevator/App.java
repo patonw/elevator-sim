@@ -3,12 +3,21 @@
  */
 package elevator;
 
+import io.javalin.Javalin;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class App {
+    private static final Logger log = LoggerFactory.getLogger(App.class);
+
     public String getGreeting() {
         return "Hello world.";
     }
 
     public static void main(String[] args) {
-        System.out.println(new App().getGreeting());
+        log.debug(new App().getGreeting());
+
+        Javalin app = Javalin.create().start(7000);
+        app.config.addStaticFiles("/web");
     }
 }
