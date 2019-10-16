@@ -15,18 +15,29 @@ plugins {
     jacoco
 }
 
+val integration = configurations.create("integration").extendsFrom(configurations["testImplementation"])
+
 repositories {
     // Use jcenter for resolving dependencies.
     // You can declare any Maven/Ivy/file repository here.
     jcenter()
 }
 
+sourceSets.create("integration") {
+    java.srcDir("src/integration/java")
+    resources.srcDir("src/integration/resources")
+    compileClasspath += sourceSets["main"].output + configurations["testRuntimeClasspath"]
+    runtimeClasspath += output + compileClasspath + sourceSets["test"].runtimeClasspath
+}
+
 dependencies {
+
     // This dependency is used by the application.
     implementation("com.google.guava:guava:28.0-jre")
 
     // Use JUnit test framework
     testImplementation("junit:junit:4.12")
+    testImplementation("org.mockito:mockito-core:3.1.0")
     testImplementation("org.hamcrest:hamcrest:2.1")
 
     // Logging
@@ -36,11 +47,19 @@ dependencies {
 
 
     // Functional & reactive programming
-//    implementation("io.vavr:vavr:0.9.3")
+    implementation("io.vavr:vavr:0.9.3")
 //    implementation("io.reactivex.rxjava2:rxjava:2.2.12")
 
     // Web server
     implementation("io.javalin:javalin:3.5.0")
+}
+
+// TODO merge integration tests into coverage report
+task<Test>("integration") {
+    group = "verification"
+    description = "runs integration tests"
+    testClassesDirs = sourceSets["integration"].output.classesDirs
+    classpath = sourceSets["integration"].runtimeClasspath
 }
 
 application {

@@ -10,6 +10,7 @@ const vegaOpts = {
     actions: false
 };
 
+// TODO websocket based display and control panel
 class App extends Component {
     render() {
         return html`
