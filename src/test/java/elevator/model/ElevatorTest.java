@@ -17,11 +17,11 @@ public class ElevatorTest {
     @Test
     public void testLoadUnload() {
         EventBus bus = Mockito.mock(EventBus.class);
-        Floor orig = new Floor(5);
-        Floor mid = new Floor(6);
-        Floor dest = new Floor(10);
+        Floor orig = new Floor(5,1);
+        Floor mid = new Floor(6, 1);
+        Floor dest = new Floor(9, 1);
         Passenger passenger = new Passenger(orig, dest);
-        Elevator elevator = new Elevator();
+        Elevator elevator = new Elevator(0, 10);
 
         assertThat(elevator.getPassengers(), is(empty()));
 
@@ -41,4 +41,7 @@ public class ElevatorTest {
         Event.DropPassenger dropped = (Event.DropPassenger) captor.getValue();
         assertThat(dropped.getPassenger(), is(passenger));
     }
+
+    // TODO test request assignment
+    // TODO test clock tick handling
 }

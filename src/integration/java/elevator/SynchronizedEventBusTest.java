@@ -15,10 +15,11 @@ import java.util.stream.IntStream;
 
 import static org.mockito.Mockito.times;
 
+// Test that bus delivers messages at all
 public class SynchronizedEventBusTest {
-    final Floor floor = new Floor(0);
+    final Floor floor = new Floor(0, 2);
     final Passenger passenger = new Passenger(floor, floor);
-    final Elevator elevator = new Elevator();
+    final Elevator elevator = new Elevator(0, 10);
     final Event.ClockTick tickEvent = new Event.ClockTick(2);
     final Event.LoadPassenger loadEvent = new Event.LoadPassenger(floor, elevator, passenger);
     final Event.DropPassenger dropEvent = new Event.DropPassenger(floor, elevator, passenger);

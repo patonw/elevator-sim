@@ -7,7 +7,6 @@ import static junit.framework.TestCase.assertFalse;
 import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
 
 public class TrajectoryTest {
     @Test
@@ -53,6 +52,29 @@ public class TrajectoryTest {
         assertThat(second.getEndTime(), is(141L));
         assertThat(second.getEndFloor(), is(31));
         assertThat(second.nextFloor(), is(19));
+    }
+
+    @Test
+    public void testAugmentPath() {
+        Trajectory start = new Trajectory(100,20);
+
+        Trajectory first = start.augment(10, 5);
+        Trajectory disjoint = first.augment(7, 22);
+
+        assertThat(first.getEndTime(), is(115L));
+        assertThat(first.getEndFloor(), is(5));
+        assertThat(first.nextFloor(), is(19));
+
+        assertThat(disjoint.getEndTime(), is(132L));
+        assertThat(disjoint.getEndFloor(), is(22));
+        assertThat(disjoint.nextFloor(), is(19));
+
+        // Should continue directly from 22 to 27.
+        // Should not backtrack to 15 before continuing to 27
+        Trajectory overlap = disjoint.augment(15, 27);
+        assertThat(overlap.getEndTime(), is(137L));
+        assertThat(overlap.getEndFloor(), is(27));
+        assertThat(overlap.nextFloor(), is(19));
     }
 
     @Test
@@ -132,8 +154,10 @@ public class TrajectoryTest {
 
         assertTrue(trajectory.includes(10, 5));
         assertTrue(trajectory.includes(5,10));
-        assertFalse(trajectory.includes(9, 4));
+        assertFalse(trajectory.includes(9, 2));
         assertTrue(trajectory.includes(5,30));
         assertFalse(trajectory.includes(30, 20));
     }
 }
+
+

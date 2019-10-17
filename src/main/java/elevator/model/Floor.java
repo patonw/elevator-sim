@@ -6,17 +6,18 @@ import elevator.event.EventReactor;
 import elevator.event.EventTopic;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
-public class Floor implements Location, EventReactor {
-    // TODO rename to id
-    private final int number;
-    private Map<Elevator, List<Passenger>> waiting = new HashMap<>(); // TODO use an array of [Elevator] -> Set<Passenger>
-//    private AtomicReference<Map<Elevator, List<Passenger>>> ref = new AtomicReference<>(HashMap.empty()); // vavr-ized
+public class Floor implements EventReactor {
+    private final int id;
+    private ArrayList<Set<Passenger>> elevators;
 
-    // TODO parameterize with number of elevators
-    public Floor(int number) {
-        this.number = number;
+    public Floor(int id, int numElevators) {
+        this.id = id;
+        this.elevators = new ArrayList<>(numElevators);
+        for (int i = 0; i < numElevators; i++) {
+            elevators.add(i, new HashSet<>());
+        }
     }
 
     @Override
@@ -24,53 +25,62 @@ public class Floor implements Location, EventReactor {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Floor floor = (Floor) o;
-        return number == floor.number;
+        return id == floor.id;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(number);
+        return Objects.hash(id);
     }
 
     @Override
     public String toString() {
-        return "Floor #" + number;
+        return "Floor #" + id;
     }
 
-    public int getNumber() {
-        return number;
+    public int getId() {
+        return id;
+    }
+
+    public Set<Passenger> getPassengers() {
+        return elevators.stream().flatMap(Collection::stream).collect(Collectors.toSet());
     }
 
     @Override
     public void onEvent(EventBus bus, Event event) {
-        if (event instanceof Event.RequestAssignment) {
-            handleRequestAssignment(bus, (Event.RequestAssignment) event);
-        }
-        else if (event instanceof Event.ElevatorArrived) {
+        if (event instanceof Event.ElevatorArrived) {
             handleElevatorArrived(bus, (Event.ElevatorArrived) event);
         }
+        else if (event instanceof Event.RequestAccepted) {
+            handleRequestAccepted(bus, (Event.RequestAccepted) event);
+        }
+
+        // TODO log arriving passengers for audit
+    }
+
+    private void handleRequestAccepted(EventBus bus, Event.RequestAccepted event) {
+        handleRequestAssignment(bus, event.getRequest());
     }
 
     private void handleElevatorArrived(EventBus bus, Event.ElevatorArrived event) {
-        if (!this.equals(event.getFloor()))
+        if (this.getId() != event.getFloor())
             return;
 
-        Elevator elevator = event.getElevator();
-        List<Passenger> waiters = waiting.computeIfAbsent(elevator, key -> new LinkedList<>());
-        waiters.forEach(passenger -> {
-            bus.fire(EventTopic.PASSENGER, new Event.LoadPassenger(this, elevator, passenger));
+        int elevatorId = event.getElevator();
+        Set<Passenger> toLoad = elevators.get(elevatorId);
+        toLoad.forEach(passenger -> {
+            bus.fire(EventTopic.PASSENGER, new Event.LoadPassenger(this.getId(), elevatorId, passenger));
         });
-
-        waiters.clear();
+        toLoad.clear();
     }
 
-    private void handleRequestAssignment(EventBus bus, Event.RequestAssignment event) {
-        if (!this.equals(event.getFloor()))
+    private void handleRequestAssignment(EventBus bus, Event.AssignRequest event) {
+        if (this.getId() != event.getFloor())
             return;
 
-        Elevator elevator = event.getElevator();
+        int elevatorId = event.getElevator();
         Passenger passenger = event.getPassenger();
-        List<Passenger> waiters = waiting.computeIfAbsent(elevator, key -> new LinkedList<>());
-        waiters.add(passenger);
+        assert (elevatorId < elevators.size());
+        elevators.get(elevatorId).add(passenger);
     }
 }

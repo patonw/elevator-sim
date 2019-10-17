@@ -5,5 +5,4 @@ public enum EventTopic {
     SCHEDULING,
     PASSENGER,
     ELEVATOR,
-    REQUEST,
 }

@@ -16,10 +16,10 @@ import static org.hamcrest.MatcherAssert.*;
 import static org.mockito.Mockito.times;
 
 public class DeferredEventQueueTest {
-    final Floor floor = new Floor(0);
+    final Floor floor = new Floor(0, 1);
     final Passenger passenger = new Passenger(floor, floor);
 
-    final Elevator elevator = new Elevator();
+    final Elevator elevator = new Elevator(0, 10);
     final Event.LoadPassenger loadEvent = new Event.LoadPassenger(floor, elevator, passenger);
     final Event.DropPassenger dropEvent = new Event.DropPassenger(floor, elevator, passenger);
 

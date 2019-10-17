@@ -7,11 +7,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class LoggingEventListener implements EventReactor {
-    private static Logger log = LoggerFactory.getLogger(LoggingEventListener.class);
+    private static Logger singleton = LoggerFactory.getLogger(LoggingEventListener.class);
+    private Logger log = LoggerFactory.getLogger(LoggingEventListener.class);
+
+    public LoggingEventListener(Logger log) {
+        this.log = log;
+    }
+
+    public LoggingEventListener() {
+        this(singleton);
+    }
 
     @Override
     public void onEvent(EventBus bus, Event event) {
-
         log.info("{" + event.getClass().getSimpleName() + "} " + event);
     }
 }

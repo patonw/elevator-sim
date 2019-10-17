@@ -2,14 +2,12 @@ package elevator.simulation;
 
 
 import elevator.event.Event;
+import elevator.event.EventTopic;
 import elevator.event.SynchronizedEventBus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class FixedRateSimulator extends AbstractSimulator {
@@ -19,7 +17,7 @@ public class FixedRateSimulator extends AbstractSimulator {
     private final ScheduledExecutorService scheduler =
             Executors.newScheduledThreadPool(1);
     private final Semaphore shutdownSig = new Semaphore(0);
-    private AtomicLong clock = new AtomicLong(0);
+    private AtomicLong clock = new AtomicLong(1);
 
     public FixedRateSimulator(SynchronizedEventBus bus, long rate) {
         super(bus);
@@ -40,11 +38,21 @@ public class FixedRateSimulator extends AbstractSimulator {
 
     @Override
     public void start() throws InterruptedException {
-        scheduler.scheduleAtFixedRate(() -> {
-            bus.fire(new Event.ClockTick(clock.getAndIncrement()));
+        ScheduledFuture<?> scheduledFuture = scheduler.scheduleAtFixedRate(() -> {
+            bus.fire(EventTopic.DEFAULT, new Event.ClockTick(clock.getAndIncrement()));
             bus.process();
         }, 0L, rate, TimeUnit.MILLISECONDS);
 
+        // Block until shutdown signal
         shutdownSig.acquire();
+
+        log.info("Shutting down simulation");
+        scheduledFuture.cancel(false);
+
+        try {
+            scheduledFuture.get();
+        } catch (ExecutionException e) {
+            log.warn("Error while cancelling simulation", e);
+        }
     }
 }

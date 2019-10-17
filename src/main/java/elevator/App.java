@@ -3,21 +3,81 @@
  */
 package elevator;
 
+import elevator.event.DeferredEventQueue;
+import elevator.event.Event;
+import elevator.event.EventTopic;
+import elevator.event.SynchronizedEventBus;
+import elevator.model.Building;
+import elevator.model.HomingElevatorFactory;
+import elevator.model.Passenger;
+import elevator.scheduling.FlockScheduler;
+import elevator.scheduling.Scheduler;
+import elevator.simulation.FixedRateSimulator;
 import io.javalin.Javalin;
+import io.javalin.core.validation.Validator;
+import io.vavr.control.Try;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.CompletableFuture;
 
 public class App {
     private static final Logger log = LoggerFactory.getLogger(App.class);
 
-    public String getGreeting() {
-        return "Hello world.";
+    private final int numFloors = 30;
+    private final int numElevators = 5;
+    private int[] homeFloors = {5, 10, 15, 20, 25};
+    private DeferredEventQueue queue;
+    private Scheduler sched;
+    private SynchronizedEventBus bus;
+    private HomingElevatorFactory elevatorFactory;
+    private Building building;
+
+    public void init() {
+        queue = new DeferredEventQueue();
+        sched = new FlockScheduler();
+        bus = new SynchronizedEventBus();
+        elevatorFactory = new HomingElevatorFactory(numFloors, homeFloors);
+
+        building = Building.builder()
+                .floors(numFloors)
+                .elevators(numElevators)
+                .setElevatorFactory(elevatorFactory)
+                .setEventBus(bus)
+                .eventQueue(queue)
+                .scheduler(sched)
+                .build();
+    }
+
+    public CompletableFuture<Void> run() {
+        final int tickRate = 1000;
+
+        LoggingEventListener consoler = new LoggingEventListener(log);
+        bus.attach(consoler);
+
+        FixedRateSimulator sim = new FixedRateSimulator(bus, tickRate);
+
+        return CompletableFuture.runAsync(() -> Try.run(sim::start));
     }
 
     public static void main(String[] args) {
-        log.debug(new App().getGreeting());
+        App app = new App();
+        app.init();
+        CompletableFuture<Void> task = app.run();
 
-        Javalin app = Javalin.create().start(7000);
-        app.config.addStaticFiles("/web");
+        Javalin server = Javalin.create().start(7000);
+        server.config.addStaticFiles("/web");
+        server.get("/passenger", ctx -> {
+            Validator<Integer> origin = ctx.queryParam("origin", Integer.class)
+                    .check(i -> i > 0 && i < app.numFloors);
+
+            Validator<Integer> dest = ctx.queryParam("dest", Integer.class)
+                    .check(i -> i > 0 && i < app.numFloors);;
+
+            Passenger pass = new Passenger(dest.get());
+            app.bus.fire(EventTopic.PASSENGER, new Event.ScheduleRequest(pass, origin.get()));
+        });
+
+        task.join();
     }
 }

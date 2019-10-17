@@ -10,7 +10,7 @@ import java.util.stream.Stream;
 
 public abstract class AbstractSimulator {
     protected final SynchronizedEventBus bus;
-    private AtomicLong clock = new AtomicLong(0);
+    private AtomicLong clock = new AtomicLong(1);
 
     public AbstractSimulator(SynchronizedEventBus bus) {
         this.bus = bus;

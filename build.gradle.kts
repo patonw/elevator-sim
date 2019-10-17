@@ -23,6 +23,11 @@ repositories {
     jcenter()
 }
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
 sourceSets.create("integration") {
     java.srcDir("src/integration/java")
     resources.srcDir("src/integration/resources")

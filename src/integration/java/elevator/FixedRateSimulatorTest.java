@@ -20,9 +20,10 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.atLeast;
 
+// Ensure that the FixedRateSimulator fires clock ticks at a specified rate
 public class FixedRateSimulatorTest {
     @Test
-    public void testFoo() throws InterruptedException, TimeoutException, ExecutionException {
+    public void testSimulation() throws InterruptedException, TimeoutException, ExecutionException {
         SynchronizedEventBus bus = new SynchronizedEventBus();
         FixedRateSimulator sim = new FixedRateSimulator(bus, 100);
         EventReactor mock = Mockito.mock(EventReactor.class);
