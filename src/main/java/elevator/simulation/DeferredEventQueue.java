@@ -1,5 +1,9 @@
-package elevator.event;
+package elevator.simulation;
 
+import elevator.event.Event;
+import elevator.event.EventBus;
+import elevator.event.EventReactor;
+import elevator.event.EventTopic;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -9,7 +13,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Defer events to fire at predetermined clock ticks.
  *
- * Used for offline simulations (e.g. integration tests) and scheduling health checks.
+ * Can be used for offline simulations.
  */
 public class DeferredEventQueue implements EventReactor {
     private static final Logger log = LoggerFactory.getLogger(DeferredEventQueue.class);

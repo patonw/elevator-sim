@@ -1,6 +1,14 @@
 package elevator.event;
 
 public interface EventReactor {
+    /**
+     * Reacts to an published event.
+     *
+     * Can create and send additional events in reaction to the incoming one.
+     *
+     * @param bus The event bus to send reactions
+     * @param event The incoming event
+     */
     void onEvent(EventBus bus, Event event);
 
     /**

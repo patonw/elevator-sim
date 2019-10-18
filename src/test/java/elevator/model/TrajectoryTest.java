@@ -1,6 +1,9 @@
 package elevator.model;
 
+import elevator.util.Splice;
 import io.vavr.collection.List;
+import io.vavr.collection.Queue;
+import io.vavr.control.Option;
 import org.junit.Test;
 
 import static junit.framework.TestCase.assertFalse;
@@ -157,6 +160,23 @@ public class TrajectoryTest {
         assertFalse(trajectory.includes(9, 2));
         assertTrue(trajectory.includes(5,30));
         assertFalse(trajectory.includes(30, 20));
+    }
+
+
+    @Test public void testSplicing() {
+        Queue<Integer> points = Queue.of(44, 65, 90, 91);
+
+        final Option<Queue<Integer>> result = Splice.splice(79, points, 82, 94);
+        assertTrue(result.isDefined());
+        final Queue<Integer> updated = result.get();
+
+        assertThat(updated, is(Queue.of(44, 65, 82, 90, 91, 94)));
+
+        assertFalse(Splice.splice(79, points, 33, 94).isDefined());
+        assertFalse(Splice.splice(79, points, 33, 21).isDefined());
+        assertFalse(Splice.splice(79, points, 5, 10).isDefined());
+
+        assertThat(Splice.splice(79, points, 45, 82).get(), is(Queue.of(44, 45, 65, 82, 90, 91)));
     }
 }
 

@@ -3,15 +3,14 @@
  */
 package elevator;
 
-import elevator.event.DeferredEventQueue;
-import elevator.event.Event;
-import elevator.event.EventTopic;
-import elevator.event.SynchronizedEventBus;
+import elevator.event.*;
 import elevator.model.Building;
+import elevator.model.ElevatorFactory;
 import elevator.model.HomingElevatorFactory;
 import elevator.model.Passenger;
 import elevator.scheduling.FlockScheduler;
 import elevator.scheduling.Scheduler;
+import elevator.simulation.DeferredEventQueue;
 import elevator.simulation.FixedRateSimulator;
 import io.javalin.Javalin;
 import io.javalin.core.validation.Validator;
@@ -19,65 +18,120 @@ import io.vavr.control.Try;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.IntStream;
 
-public class App {
+public class App implements EventEmitter {
     private static final Logger log = LoggerFactory.getLogger(App.class);
 
-    private final int numFloors = 30;
-    private final int numElevators = 5;
-    private int[] homeFloors = {5, 10, 15, 20, 25};
+    final int TICK_RATE = 1000;
+    private final int NUM_FLOORS = 100;
+    private final int NUM_ELEVATORS = 10;
+    private final int[] HOME_FLOORS = {5, 10, 15, 20, 25, 45, 50, 60, 70, 80};
+
     private DeferredEventQueue queue;
     private Scheduler sched;
     private SynchronizedEventBus bus;
-    private HomingElevatorFactory elevatorFactory;
+    private ElevatorFactory elevatorFactory;
     private Building building;
 
     public void init() {
         queue = new DeferredEventQueue();
         sched = new FlockScheduler();
         bus = new SynchronizedEventBus();
-        elevatorFactory = new HomingElevatorFactory(numFloors, homeFloors);
+        elevatorFactory = new HomingElevatorFactory(NUM_FLOORS, HOME_FLOORS);
+//        elevatorFactory = new ElevatorFactory(NUM_FLOORS);
 
         building = Building.builder()
-                .floors(numFloors)
-                .elevators(numElevators)
+                .floors(NUM_FLOORS)
+                .elevators(NUM_ELEVATORS)
                 .setElevatorFactory(elevatorFactory)
                 .setEventBus(bus)
                 .eventQueue(queue)
                 .scheduler(sched)
                 .build();
+
+        LoggingEventListener console = new LoggingEventListener(log);
+        bus.attach(console);
+
+        AtomicLong drops = new AtomicLong();
+        bus.attach((me,evt) -> {
+            if (evt instanceof Event.DropPassenger) {
+                log.info("Passengers served so far {}", drops.incrementAndGet());
+            }
+        });
+
     }
 
-    public CompletableFuture<Void> run() {
-        final int tickRate = 1000;
+    @Override
+    public RunnableEventBus getBus() {
+        if (bus == null)
+            init();
 
-        LoggingEventListener consoler = new LoggingEventListener(log);
-        bus.attach(consoler);
-
-        FixedRateSimulator sim = new FixedRateSimulator(bus, tickRate);
-
-        return CompletableFuture.runAsync(() -> Try.run(sim::start));
+        return bus;
     }
 
-    public static void main(String[] args) {
+    public Future<Void> start() {
+        return new FixedRateSimulator(getBus(), TICK_RATE).startAsync();
+    }
+
+    public static void main(String[] args) throws ExecutionException, InterruptedException {
         App app = new App();
-        app.init();
-        CompletableFuture<Void> task = app.run();
+        Future<Void> task = app.start();
 
         Javalin server = Javalin.create().start(7000);
         server.config.addStaticFiles("/web");
         server.get("/passenger", ctx -> {
             Validator<Integer> origin = ctx.queryParam("origin", Integer.class)
-                    .check(i -> i > 0 && i < app.numFloors);
+                    .check(i -> i > 0 && i < app.NUM_FLOORS);
 
             Validator<Integer> dest = ctx.queryParam("dest", Integer.class)
-                    .check(i -> i > 0 && i < app.numFloors);;
+                    .check(i -> i > 0 && i < app.NUM_FLOORS && !Objects.equals(i, origin.get()));
+            ;
 
             Passenger pass = new Passenger(dest.get());
             app.bus.fire(EventTopic.PASSENGER, new Event.ScheduleRequest(pass, origin.get()));
         });
 
-        task.join();
+        server.get("/stress", ctx -> {
+            Validator<Integer> n = ctx.queryParam("n", Integer.class)
+                    .check(i -> i > 0);
+
+            Validator<Integer> rate = ctx.queryParam("rate", Integer.class)
+                    .check(i -> i > 0 && i <= app.TICK_RATE);
+
+
+            final Boolean concurrent = ctx.queryParam("concurrent", Boolean.class, "false").get();
+
+            int delay = app.TICK_RATE / rate.get();
+
+            CompletableFuture.runAsync(() -> IntStream.range(0, n.get())
+                    .forEach(i -> {
+                        int orig = ThreadLocalRandom.current().nextInt(0, app.NUM_FLOORS);
+                        int dest = ThreadLocalRandom.current().ints(0, app.NUM_FLOORS)
+                                .filter(d -> d != orig)
+                                .findFirst()
+                                .getAsInt();
+
+                        Passenger pass = new Passenger(dest);
+                        app.bus.fire(EventTopic.PASSENGER, new Event.ScheduleRequest(pass, orig));
+
+                        if (concurrent) {
+                            if (i % rate.get() == 0)
+                                Try.run(() -> Thread.sleep(app.TICK_RATE));
+                        }
+                        else
+                            Try.run(() -> Thread.sleep(delay));
+                    })
+            );
+        });
+
+        task.get();
     }
+
 }

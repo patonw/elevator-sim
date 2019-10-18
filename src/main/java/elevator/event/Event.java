@@ -126,29 +126,36 @@ public interface Event {
         private final int floor;
         private final int elevator;
         private final Option<Long> timeLeftOnTask;
+        private final Option<Long> endTime;
 
-        public AssignRequest(Passenger passenger, int floor, int elevator, Option<Long> timeLeftOnTask) {
+        public AssignRequest(Passenger passenger, int floor, int elevator, Option<Long> timeLeftOnTask, Option<Long> endTime) {
             this.passenger = passenger;
             this.floor = floor;
             this.elevator = elevator;
             this.timeLeftOnTask = timeLeftOnTask;
+            this.endTime = endTime;
         }
 
         public AssignRequest(Passenger passenger, int floor, int elevator) {
-            this(passenger, floor, elevator, Option.none());
-        }
-
-        public AssignRequest(Passenger passenger, int floor, int elevator, long timeLeftOnTask) {
-            this(passenger, floor, elevator, Option.some(timeLeftOnTask));
+            this(passenger, floor, elevator, Option.none(), Option.none());
         }
 
         public AssignRequest(Passenger passenger, Floor floor, Elevator elevator) {
             this(passenger, floor.getId(), elevator.getId());
         }
 
+        public AssignRequest(Passenger passenger, int floor, int elevator, long timeLeftOnTask) {
+            this(passenger, floor, elevator, Option.some(timeLeftOnTask), Option.none());
+        }
+
+        public AssignRequest(Passenger passenger, int floor, int elevator, long timeLeftOnTask, long endTime) {
+            this(passenger, floor, elevator, Option.some(timeLeftOnTask), Option.some(endTime));
+        }
+
+
         @Override
         public String toString() {
-            return String.format("AssignRequest(%s, floor=%d, elevator=%d, deltaT=%s)", passenger, floor, elevator, timeLeftOnTask);
+            return String.format("AssignRequest(%s, floor=%d, elevator=%d, deltaT=%s, endTime=%s)", passenger, floor, elevator, timeLeftOnTask, endTime);
         }
 
         public int getFloor() {
@@ -165,6 +172,10 @@ public interface Event {
 
         public Option<Long> getTimeLeftOnTask() {
             return timeLeftOnTask;
+        }
+
+        public Option<Long> getEndTime() {
+            return endTime;
         }
     }
 

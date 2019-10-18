@@ -30,7 +30,7 @@ public class Trajectory implements Cloneable {
     }
 
     // Absolute time when the task is complete
-    long getEndTime() {
+    public long getEndTime() {
         return currentTime + timeLeftOnTask;
     }
 
@@ -60,6 +60,7 @@ public class Trajectory implements Cloneable {
     }
 
     /**
+     * Determine if the elevator should stop on the current floor.
      *
      * @return True when the elevator should stop at the current floor
      */
@@ -75,6 +76,11 @@ public class Trajectory implements Cloneable {
         return nextpoints;
     }
 
+    /**
+     * Advance the trajectory by one clock cycle and return the result without mutating the current instance.
+     *
+     * @return A new trajectory instance representing the successor of [this]
+     */
     public Trajectory step() {
         try {
             Trajectory result = (Trajectory) this.clone();
@@ -106,7 +112,8 @@ public class Trajectory implements Cloneable {
             long deltaT = Math.abs(start - oldEndFloor) + Math.abs(end - start);
             result.turnpoints = turnpoints.append(start).append(end);
             result.timeLeftOnTask += deltaT;
-//            result.removeCompleted();
+
+//            assert(result.timeLeftOnTask == result.calculateTimeOnTask());
 
             return result;
         } catch (CloneNotSupportedException e) {
@@ -132,11 +139,27 @@ public class Trajectory implements Cloneable {
             result.turnpoints = newpoints;
 
             // Non-strict splice allows trajectory extension if there is an overlap with the end
-            if (!newpoints.last().equals(turnpoints.last()))
+            if (!newpoints.last().equals(turnpoints.last())) {
                 result.timeLeftOnTask += Math.abs(newpoints.last() - turnpoints.last());
+//                assert(result.timeLeftOnTask == result.calculateTimeOnTask());
+            }
 
             return result;
         }).toOption());
+    }
+
+    private long calculateTimeOnTask() {
+        if (turnpoints.isEmpty())
+            return 0;
+
+        long result = Math.abs(currentFloor - turnpoints.head());
+
+        result += turnpoints.zip(turnpoints.tail())
+                .map(pair -> Math.abs(pair._1 - pair._2))
+                .sum()
+                .longValue();
+
+        return result;
     }
 
     /**

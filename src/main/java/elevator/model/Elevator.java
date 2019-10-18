@@ -16,10 +16,10 @@ import java.util.stream.IntStream;
 
 public class Elevator implements EventReactor {
     private static final Logger log = LoggerFactory.getLogger(Elevator.class);
-    public final int id;
+    private final int id;
 
     private final AtomicReference<Trajectory> trajectory = new AtomicReference<>();
-    private ArrayList<Set<Passenger>> floors;
+    private final ArrayList<Set<Passenger>> floors;
 
     public Elevator(int id, int numFloors, Trajectory trajectory) {
         this.id = id;
@@ -97,20 +97,21 @@ public class Elevator implements EventReactor {
             Trajectory oldTraj = getTrajectory();
 
             // Try inserting into the middle first, only extend if fails
-            Option<Trajectory> inserted = oldTraj.insertSegment(orig, dest);
-            Trajectory newTraj = inserted.getOrElse(() -> oldTraj.extend(orig, dest));
+            Trajectory newTraj = oldTraj.augment(orig, dest);
 
             // Detect and reject stale assignments. May occur if an idle elevator moves to a new floor during scheduling
             // or if another scheduling request is concurrently assigned to this elevator.
             // For a busy elevator that is already on a task, however, remaining time should not vary between clock ticks
             // unless the start of the request is the previous floor.
-            if (event.getTimeLeftOnTask().isDefined() && event.getTimeLeftOnTask().get() != newTraj.getTimeLeftOnTask()) {
+            if (event.getEndTime().isDefined() && event.getEndTime().get() != newTraj.getEndTime()) {
                 bus.fire(EventTopic.SCHEDULING, new Event.RequestRejected(event));
                 return;
             }
 
             // This is not sufficient to achieve optimistic locking. Need to keep coarse-grained sync for now.
             if (trajectory.compareAndSet(oldTraj, newTraj)) {
+                log.debug("Elevator {} at floor {} accepting request for {} to {}. ", id, getCurrentFloor(), orig, dest);
+                log.debug("Trajectory changed from {} to {}", oldTraj, newTraj);
                 bus.fire(EventTopic.SCHEDULING, new Event.RequestAccepted(event));
                 processCurrentTime(bus);
                 return;
@@ -134,8 +135,13 @@ public class Elevator implements EventReactor {
             if (trajectory.compareAndSet(oldTraj, newTraj)) {
                 processCurrentTime(bus);
 
-                if (oldTraj.isMoving() && getTrajectory().isIdle())
+                if (oldTraj.isMoving() && getTrajectory().isIdle()) {
                     bus.fire(EventTopic.ELEVATOR, new Event.ElevatorIdle(this.id, getCurrentFloor()));
+
+                    final Set<Passenger> passengers = getPassengers();
+                    if (passengers.size() > 0)
+                        log.warn("Elevator {} idling with stranded passengers {}", id, passengers);
+                }
 
                 return;
             }
@@ -145,8 +151,10 @@ public class Elevator implements EventReactor {
     private void processCurrentTime(EventBus bus) {
         // Update position based on trajectory
         // Fire arrival event if floor is on stops
-        if (getTrajectory().shouldStop())
+        if (getTrajectory().shouldStop()) {
+//            unloadPassengers(bus, getCurrentFloor());
             bus.fire(EventTopic.ELEVATOR, new Event.ElevatorArrived(this.id, getCurrentFloor()));
+        }
     }
 
     private void handleElevatorArrived(EventBus bus, Event.ElevatorArrived event) {
@@ -155,22 +163,35 @@ public class Elevator implements EventReactor {
         if (this.id != elevatorId)
             return;
 
-        assert (floor < floors.size());
-        Set<Passenger> toDrop = floors.get(floor);
-        toDrop.forEach(passenger -> {
-            bus.fire(EventTopic.PASSENGER, new Event.DropPassenger(floor, this.getId(), passenger));
-        });
-        toDrop.clear();
+        unloadPassengers(bus, floor);
+    }
+
+    private void unloadPassengers(EventBus bus, int floor) {
+        synchronized (floors) {
+            assert (floor < floors.size());
+            Set<Passenger> toDrop = floors.get(floor);
+            if (toDrop.size() <= 0)
+                return;
+
+            toDrop.forEach(passenger -> {
+                bus.fire(EventTopic.PASSENGER, new Event.DropPassenger(floor, this.getId(), passenger));
+            });
+            toDrop.clear();
+            log.debug("Unloading elevator {} at floor {} with {} remaining", id, floor, getPassengers().size());
+        }
     }
 
     private void handleLoadPassenger(EventBus bus, Event.LoadPassenger event) {
         if (this.id != event.getElevator())
             return;
 
-        Passenger passenger = event.getPassenger();
-        int dest = passenger.getDestination();
+        synchronized(floors) {
+            Passenger passenger = event.getPassenger();
+            int dest = passenger.getDestination();
 
-        assert (dest < floors.size());
-        floors.get(dest).add(passenger);
+            assert (dest < floors.size());
+            floors.get(dest).add(passenger);
+            log.debug("Loaded passenger {} total is {}", passenger, getPassengers().size());
+        }
     }
 }

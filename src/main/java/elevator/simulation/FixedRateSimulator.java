@@ -3,7 +3,8 @@ package elevator.simulation;
 
 import elevator.event.Event;
 import elevator.event.EventTopic;
-import elevator.event.SynchronizedEventBus;
+import elevator.event.RunnableEventBus;
+import io.vavr.control.Try;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +20,7 @@ public class FixedRateSimulator extends AbstractSimulator {
     private final Semaphore shutdownSig = new Semaphore(0);
     private AtomicLong clock = new AtomicLong(1);
 
-    public FixedRateSimulator(SynchronizedEventBus bus, long rate) {
+    public FixedRateSimulator(RunnableEventBus bus, long rate) {
         super(bus);
         this.rate = rate;
     }
@@ -36,15 +37,32 @@ public class FixedRateSimulator extends AbstractSimulator {
         shutdownSig.release();
     }
 
+    /**
+     * Runs the event loop in a new thread (from the default pool).
+     *
+     * The future returned can be used to monitor the state of the loop and to join
+     * it to the main thread. However, use {@link #shutdown()} to gracefully terminate
+     * the simulation.
+     *
+     * @return A future that can be used to join the task to the main thread.
+     */
+    public Future<Void> startAsync() {
+        return CompletableFuture.runAsync(() -> Try.run(this::start));
+    }
+
+    /**
+     * Runs the event loop blocking the current thread.
+     *
+     * @throws InterruptedException
+     */
     @Override
     public void start() throws InterruptedException {
         ScheduledFuture<?> scheduledFuture = scheduler.scheduleAtFixedRate(() -> {
             bus.fire(EventTopic.DEFAULT, new Event.ClockTick(clock.getAndIncrement()));
-            bus.process();
-        }, 0L, rate, TimeUnit.MILLISECONDS);
+        }, 100L, rate, TimeUnit.MILLISECONDS);
 
-        // Block until shutdown signal
-        shutdownSig.acquire();
+        // Blocks until shutdown signal is given
+        bus.run(shutdownSig);
 
         log.info("Shutting down simulation");
         scheduledFuture.cancel(false);

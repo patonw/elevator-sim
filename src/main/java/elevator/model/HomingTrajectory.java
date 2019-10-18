@@ -1,5 +1,6 @@
 package elevator.model;
 
+// TODO change to using a strategy object for IdleBehavior rather than overriding methods
 public class HomingTrajectory extends Trajectory implements Cloneable {
     private int homeFloor;
     public HomingTrajectory(int homeFloor, long currentTime, int currentFloor) {
@@ -12,6 +13,11 @@ public class HomingTrajectory extends Trajectory implements Cloneable {
             return getTimeLeftOnTask() + Math.abs(getEndFloor() - homeFloor);
         else
             return Math.abs(getCurrentFloor() - homeFloor);
+    }
+
+    @Override
+    public String toString() {
+        return getTurnpoints().toString();
     }
 
     @Override

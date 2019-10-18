@@ -4,7 +4,7 @@ import elevator.event.EventBus;
 import elevator.event.EventReactor;
 import elevator.scheduling.RejectionReactor;
 import elevator.scheduling.Scheduler;
-import elevator.event.DeferredEventQueue;
+import elevator.simulation.DeferredEventQueue;
 import io.vavr.collection.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

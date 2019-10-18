@@ -5,7 +5,7 @@ import elevator.model.Building;
 import elevator.model.HomingElevatorFactory;
 import elevator.model.Passenger;
 import elevator.scheduling.RRFIFOScheduler;
-import elevator.scheduling.Scheduler;
+import elevator.simulation.DeferredEventQueue;
 import elevator.simulation.FixedRateSimulator;
 import io.vavr.control.Try;
 import org.junit.After;
@@ -67,7 +67,7 @@ public class HomingBuildingTest {
         bus.attach(mock);
 
         IntStream.range(0,numElevators).forEach(i -> {
-            assertThat(building.getElevator(i).getCurrentFloor(), is(0));
+            assertThat(building.getElevator(i).getCurrentFloor(), is(homeFloors[i]));
         });
 
         FixedRateSimulator sim = new FixedRateSimulator(bus, 20);

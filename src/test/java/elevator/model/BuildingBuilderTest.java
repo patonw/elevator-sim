@@ -1,8 +1,7 @@
 package elevator.model;
 
-import elevator.event.DeferredEventQueue;
+import elevator.simulation.DeferredEventQueue;
 import elevator.event.EventBus;
-import elevator.model.Building;
 import elevator.scheduling.RRFIFOScheduler;
 import elevator.scheduling.Scheduler;
 import org.junit.Test;

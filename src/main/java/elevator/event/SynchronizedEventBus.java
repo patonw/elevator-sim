@@ -1,5 +1,6 @@
 package elevator.event;
 
+import elevator.simulation.DeferredEventQueue;
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import org.slf4j.Logger;
@@ -11,9 +12,10 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
 
 // Could use quite a bit of optimization but good enough for a proof of concept
-public class SynchronizedEventBus implements EventBus {
+public class SynchronizedEventBus implements RunnableEventBus {
     private static final Logger log = LoggerFactory.getLogger(DeferredEventQueue.class);
 
     // tempted to use functional collections with atomic references instead
@@ -54,17 +56,7 @@ public class SynchronizedEventBus implements EventBus {
         });
     }
 
-    /**
-     * Broadcasts all queued items to reactors and returns when the queue is empty.
-     *
-     * Event reactors can fire additional events while handling queued events.
-     * {process} will not return until all these follow-up events have been handled.
-     *
-     * This can be used in offline simulation or to trigger processing in asynchronous event
-     * emitters in the absence of a daemon thread.
-     *
-     * @return Number of events processed in this iteration.
-     */
+    @Override
     public int process() {
         int ctr = 0;
         while (true) {
@@ -78,15 +70,15 @@ public class SynchronizedEventBus implements EventBus {
         return ctr;
     }
 
-    /**
-     * Wait indefinitely for new events and process them on arrival.
-     *
-     * This should be run on a daemon thread, detached from the main UI thread.
-     */
-    public void run() throws InterruptedException {
+    @Override
+    public void run(Semaphore shutdownSig) throws InterruptedException {
         while (true) {
             Tuple2<EventTopic, Event> event = queue.take();
             dispatch(event._1, event._2);
+
+            // Could just use an atomic boolean instead
+            if (shutdownSig.tryAcquire())
+                return;
         }
     }
 }

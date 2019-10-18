@@ -10,7 +10,7 @@ import java.util.stream.Collectors;
 
 public class Floor implements EventReactor {
     private final int id;
-    private ArrayList<Set<Passenger>> elevators;
+    private final ArrayList<Set<Passenger>> elevators;
 
     public Floor(int id, int numElevators) {
         this.id = id;
@@ -67,20 +67,24 @@ public class Floor implements EventReactor {
             return;
 
         int elevatorId = event.getElevator();
-        Set<Passenger> toLoad = elevators.get(elevatorId);
-        toLoad.forEach(passenger -> {
-            bus.fire(EventTopic.PASSENGER, new Event.LoadPassenger(this.getId(), elevatorId, passenger));
-        });
-        toLoad.clear();
+        synchronized (elevators) {
+            Set<Passenger> toLoad = elevators.get(elevatorId);
+            toLoad.forEach(passenger -> {
+                bus.fire(EventTopic.PASSENGER, new Event.LoadPassenger(this.getId(), elevatorId, passenger));
+            });
+            toLoad.clear();
+        }
     }
 
     private void handleRequestAssignment(EventBus bus, Event.AssignRequest event) {
         if (this.getId() != event.getFloor())
             return;
 
-        int elevatorId = event.getElevator();
-        Passenger passenger = event.getPassenger();
-        assert (elevatorId < elevators.size());
-        elevators.get(elevatorId).add(passenger);
+        synchronized (elevators) {
+            int elevatorId = event.getElevator();
+            Passenger passenger = event.getPassenger();
+            assert (elevatorId < elevators.size());
+            elevators.get(elevatorId).add(passenger);
+        }
     }
 }

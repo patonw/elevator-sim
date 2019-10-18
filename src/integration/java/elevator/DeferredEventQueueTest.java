@@ -1,7 +1,6 @@
 package elevator;
 
-import elevator.*;
-import elevator.event.DeferredEventQueue;
+import elevator.simulation.DeferredEventQueue;
 import elevator.event.Event;
 import elevator.event.EventReactor;
 import elevator.event.SynchronizedEventBus;

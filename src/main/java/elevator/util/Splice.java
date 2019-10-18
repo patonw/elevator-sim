@@ -6,7 +6,7 @@ import io.vavr.collection.Queue;
 import io.vavr.control.Option;
 
 public class Splice {
-    public static Option<Queue<Integer>> splice(int current, Queue<Integer> points, int start, int end, boolean strict, Function3<Integer, Integer, Integer, Boolean> inRange) {
+    private static Option<Queue<Integer>> splice(int current, Queue<Integer> points, int start, int end, boolean strict, Function3<Integer, Integer, Integer, Boolean> isMonotonic) {
         int left = current;
         Queue<Integer> result = Queue.empty();
         final Iterator<Integer> it = points.iterator();
@@ -14,13 +14,16 @@ public class Splice {
             return Option.none();
 
         int right = it.next();
+
+        // Process the turnpoints up to the insertion of [start]
         while (true) {
-            if (inRange.apply(left, start, end)) {
+            if (isMonotonic.apply(left, start, right)) {
                 if (result.isEmpty() || start != left && start != right)
                     result = result.append(start);
                 break;
             }
 
+            // End of turnpoints and nowhere to insert [start] -> fail
             if (!it.hasNext())
                 return Option.none();
 
@@ -30,8 +33,9 @@ public class Splice {
         }
 
 
+        // Process the turnpoints up to the insertion of [end]
         while (true) {
-            if (inRange.apply(left, end, right)) {
+            if (isMonotonic.apply(left, end, right)) {
                 if (end != left && end != right)
                     result = result.append(end);
                 break;
@@ -52,7 +56,7 @@ public class Splice {
             right = it.next();
         }
 
-        // Flush remainder and return positive result
+        // Flush remainder and return spliced result
         result = result.append(right);
 
         while (it.hasNext())
@@ -61,6 +65,19 @@ public class Splice {
         return Option.some(result);
     }
 
+    /**
+     * Inserts the span defined by [start,end] into the trajectory and returns the result as a new Queue.
+     *
+     * In non-strict mode, if the start falls within the current trajectory, it will append end to the result.
+     * This is shorter than backtracking to start before continuing to end.
+     *
+     * @param current The current floor
+     * @param points Existing turnpoints in the trajectory
+     * @param start The beginning of the span to inject
+     * @param end The end of the span to inject
+     * @param strict Forces splicing to abort if [start,end] cannot be wholly contained by points
+     * @return Either None or a new Queue representing the result
+     */
     public static Option<Queue<Integer>> splice(int current, Queue<Integer> points, int start, int end, boolean strict) {
         if (start < end)
             return splice(current, points, start, end, strict, (x,y,z) -> x <= y && y <= z);

@@ -1,6 +1,6 @@
 package elevator.simulation;
 
-import elevator.event.SynchronizedEventBus;
+import elevator.event.RunnableEventBus;
 import elevator.event.Event;
 import org.jetbrains.annotations.NotNull;
 
@@ -9,10 +9,10 @@ import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
 public abstract class AbstractSimulator {
-    protected final SynchronizedEventBus bus;
+    protected final RunnableEventBus bus;
     private AtomicLong clock = new AtomicLong(1);
 
-    public AbstractSimulator(SynchronizedEventBus bus) {
+    public AbstractSimulator(RunnableEventBus bus) {
         this.bus = bus;
     }
 

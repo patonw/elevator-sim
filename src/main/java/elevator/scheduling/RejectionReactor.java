@@ -7,9 +7,13 @@ import elevator.event.EventTopic;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+
 /**
- * Retries rejected requests indefinitely.
- *
+ * Retries rejected requests immediately, indefinitely.
  */
 public class RejectionReactor implements EventReactor {
     private static final Logger log = LoggerFactory.getLogger(RejectionReactor.class);
@@ -20,9 +24,6 @@ public class RejectionReactor implements EventReactor {
             return;
 
         Event.AssignRequest request = ((Event.RequestRejected) event).getRequest();
-        log.warn("Assignment rejected! " + request + "... retrying.");
-
-        // TODO Implement retry limit. Will require monitoring RequestAccepted too.
         bus.fire(EventTopic.SCHEDULING, new Event.ScheduleRequest(request.getPassenger(), request.getFloor()));
     }
 }
