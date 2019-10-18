@@ -1,6 +1,7 @@
 package elevator.event;
 
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public interface RunnableEventBus extends EventBus {
     /**
@@ -14,14 +15,20 @@ public interface RunnableEventBus extends EventBus {
      *
      * @return Number of events processed in this iteration.
      */
-    int process();
+    default int process() {
+        return process(Integer.MAX_VALUE);
+    }
+
+    int process(int limit);
 
     /**
      * Wait for new events and process them on arrival.
      *
-     * Exits once the shutdownSig is released.
+     * Exits once the shutdownFlag is released.
      *
-     * @param shutdownSig A semaphore that triggers shutdown when released
+     * @param shutdownFlag A flag that triggers shutdown when released
      */
-    void run(Semaphore shutdownSig) throws InterruptedException;
+    void run(AtomicBoolean shutdownFlag) throws InterruptedException;
+
+    default long getBacklog() { return -1; }
 }

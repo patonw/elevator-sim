@@ -1,9 +1,7 @@
 package elevator;
 
+import elevator.event.*;
 import elevator.simulation.DeferredEventQueue;
-import elevator.event.Event;
-import elevator.event.EventReactor;
-import elevator.event.SynchronizedEventBus;
 import elevator.model.Building;
 import elevator.model.HomingElevatorFactory;
 import elevator.model.Passenger;
@@ -29,7 +27,7 @@ public class FlockSchedulingIntegration {
     private static int[] homeFloors = {5, 10, 15, 20, 25};
     private DeferredEventQueue queue;
     private Scheduler sched;
-    private SynchronizedEventBus bus;
+    private RunnableEventBus bus;
     private HomingElevatorFactory elevatorFactory;
     private Building building;
 
@@ -37,7 +35,7 @@ public class FlockSchedulingIntegration {
     public void beforeTest() {
         queue = new DeferredEventQueue();
         sched = new FlockScheduler();
-        bus = new SynchronizedEventBus();
+        bus = new PartitionedEventBus();
         elevatorFactory = new HomingElevatorFactory(numFloors, homeFloors);
 
         building = Building.builder()
@@ -72,7 +70,7 @@ public class FlockSchedulingIntegration {
         bus.attach(loadDropCapture);
 
         FixedRateSimulator sim = new FixedRateSimulator(bus, tickRate);
-        final Future<Void> task = sim.startAsync();
+        final var task = sim.startAsync();
 
         // Concurrent requests will force scheduling conflicts that will trigger scheduling retries
         Passenger p1 = new Passenger(15);
@@ -119,7 +117,7 @@ public class FlockSchedulingIntegration {
         bus.attach(loadDropCapture);
 
         FixedRateSimulator sim = new FixedRateSimulator(bus, tickRate);
-        final Future<Void> task = sim.startAsync();
+        final var task = sim.startAsync();
 
         // Concurrent requests will force scheduling conflicts that will trigger scheduling retries
         Passenger p1 = new Passenger(15);
@@ -163,7 +161,7 @@ public class FlockSchedulingIntegration {
         bus.attach(loadDropCapture);
 
         FixedRateSimulator sim = new FixedRateSimulator(bus, tickRate);
-        final Future<Void> task = sim.startAsync();
+        final var task = sim.startAsync();
 
         // Concurrent requests will force scheduling conflicts that will trigger scheduling retries
         Passenger p1 = new Passenger(15);

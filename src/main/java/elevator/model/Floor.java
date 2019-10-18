@@ -85,6 +85,8 @@ public class Floor implements EventReactor {
             Passenger passenger = event.getPassenger();
             assert (elevatorId < elevators.size());
             elevators.get(elevatorId).add(passenger);
+
+            bus.fire(EventTopic.PASSENGER, new Event.PassengerWaiting(passenger, this.id, elevatorId));
         }
     }
 }

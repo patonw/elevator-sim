@@ -21,7 +21,7 @@ public interface Event {
 
         @Override
         public String toString() {
-            return String.valueOf(value);
+            return String.format("ClockTick(%d)", value);
         }
     }
 
@@ -182,14 +182,16 @@ public interface Event {
     class ElevatorArrived implements Event {
         private final int elevator;
         private final int floor;
+        private final long clock;
 
-        public ElevatorArrived(int elevator, int floor) {
+        public ElevatorArrived(int elevator, int floor, long clock) {
             this.elevator = elevator;
             this.floor = floor;
+            this.clock = clock;
         }
 
         public ElevatorArrived(Elevator elevator, Floor floor) {
-            this(elevator.getId(), floor.getId());
+            this(elevator.getId(), floor.getId(), 0);
         }
 
         public int getElevator() {
@@ -200,9 +202,13 @@ public interface Event {
             return floor;
         }
 
+        public long getClock() {
+            return clock;
+        }
+
         @Override
         public String toString() {
-            return "ElevatorArrived(elevator=" +elevator + ", floor=" + floor + ")";
+            return String.format("ElevatorArrived(elevator=%d, floor=%d, clock=%d", elevator, floor, clock);
         }
     }
 
@@ -270,6 +276,39 @@ public interface Event {
         @Override
         public String toString() {
             return String.format("RequestRejected(%s)", request);
+        }
+    }
+
+    class PassengerWaiting implements Event {
+        private Passenger passenger;
+        private int floor;
+        private int elevator;
+
+        public PassengerWaiting(Passenger passenger, int floor, int elevator) {
+            this.passenger = passenger;
+            this.floor = floor;
+            this.elevator = elevator;
+        }
+
+        public Passenger getPassenger() {
+            return passenger;
+        }
+
+        public int getFloor() {
+            return floor;
+        }
+
+        public int getElevator() {
+            return elevator;
+        }
+
+        @Override
+        public String toString() {
+            return "PassengerWaiting{" +
+                    "passenger=" + passenger +
+                    ", floor=" + floor +
+                    ", elevator=" + elevator +
+                    '}';
         }
     }
 

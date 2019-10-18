@@ -2,12 +2,15 @@ package elevator.model;
 
 import elevator.event.EventBus;
 import elevator.event.EventReactor;
+import elevator.event.EventTopic;
 import elevator.scheduling.RejectionReactor;
 import elevator.scheduling.Scheduler;
 import elevator.simulation.DeferredEventQueue;
 import io.vavr.collection.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.EnumSet;
 
 import static java.util.stream.IntStream.range;
 
@@ -114,16 +117,16 @@ public class Building implements Cloneable {
                 Building clone = (Building) result.clone();
                 EventBus bus = clone.bus;
                 bus.attach(clone.eventQueue);
-                bus.attach(clone.scheduler);
+                bus.attach(EnumSet.of(EventTopic.DEFAULT, EventTopic.SCHEDULING), clone.scheduler);
 
                 // TODO expose builders
-                bus.attach(rejectionHandler);
+                bus.attach(EnumSet.of(EventTopic.SCHEDULING), rejectionHandler);
                 reactors.forEach(bus::attach);
 
                 clone.floors = new Floor[numFloors];
                 range(0,numFloors).forEach(i -> {
                     clone.floors[i] = new Floor(i, numElevators);
-                    bus.attach(clone.floors[i]);
+                    bus.attach(EnumSet.of(EventTopic.DEFAULT, EventTopic.ELEVATOR), clone.floors[i]);
                 });
 
                 clone.elevators = new Elevator[numElevators];

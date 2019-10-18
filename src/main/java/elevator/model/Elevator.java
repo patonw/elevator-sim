@@ -1,7 +1,6 @@
 package elevator.model;
 
 import elevator.event.*;
-import io.vavr.control.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +18,7 @@ public class Elevator implements EventReactor {
     private final int id;
 
     private final AtomicReference<Trajectory> trajectory = new AtomicReference<>();
-    private final ArrayList<Set<Passenger>> floors;
+    private final ArrayList<Set<Passenger>> floors; // mutable - needs to be synchronized
 
     public Elevator(int id, int numFloors, Trajectory trajectory) {
         this.id = id;
@@ -66,8 +65,13 @@ public class Elevator implements EventReactor {
         return trajectory.get();
     }
 
-    public Set<Passenger> getPassengers() {
+    public synchronized Set<Passenger> getPassengers() {
         return floors.stream().flatMap(Collection::stream).collect(Collectors.toSet());
+    }
+
+    @Override
+    public void syncEvent(EventBus bus, Event event) {
+        onEvent(bus, event);
     }
 
     @Override
@@ -84,6 +88,20 @@ public class Elevator implements EventReactor {
         else if (event instanceof Event.AssignRequest) {
             handleAssignRequest(bus, (Event.AssignRequest) event);
         }
+        else if (event instanceof Event.PassengerWaiting) {
+            handlePassengerWaiting(bus, (Event.PassengerWaiting) event);
+        }
+    }
+
+    private void handlePassengerWaiting(EventBus bus, Event.PassengerWaiting event) {
+        final int elevator = event.getElevator();
+        if (elevator != this.id)
+            return;
+
+        final int floor = event.getFloor();
+        if (floor == getCurrentFloor())
+            bus.fire(EventTopic.ELEVATOR, new Event.ElevatorArrived(this.id, getCurrentFloor(), getTrajectory().getCurrentTime()));
+
     }
 
     private void handleAssignRequest(EventBus bus, Event.AssignRequest event) {
@@ -110,12 +128,16 @@ public class Elevator implements EventReactor {
 
             // This is not sufficient to achieve optimistic locking. Need to keep coarse-grained sync for now.
             if (trajectory.compareAndSet(oldTraj, newTraj)) {
-                log.debug("Elevator {} at floor {} accepting request for {} to {}. ", id, getCurrentFloor(), orig, dest);
-                log.debug("Trajectory changed from {} to {}", oldTraj, newTraj);
-                bus.fire(EventTopic.SCHEDULING, new Event.RequestAccepted(event));
-                processCurrentTime(bus);
+                log.debug("elevator={} at floor {} accepting request for {} to {}. ", id, getCurrentFloor(), orig, dest);
+                log.debug("Trajectory={} changed from {} to {}", getId(), oldTraj, newTraj);
+                bus.fire(EventTopic.ELEVATOR, new Event.RequestAccepted(event));
+                Thread.yield();
+
                 return;
             }
+
+            // old trajectory has been altered but the result of splicing is no worse
+            // Just try the update again
         }
     }
 
@@ -133,27 +155,19 @@ public class Elevator implements EventReactor {
 
             assert(newTraj.getCurrentTime() == now);
             if (trajectory.compareAndSet(oldTraj, newTraj)) {
-                processCurrentTime(bus);
+                if (getTrajectory().shouldStop())
+                    bus.fire(EventTopic.ELEVATOR, new Event.ElevatorArrived(this.id, getCurrentFloor(), now));
 
                 if (oldTraj.isMoving() && getTrajectory().isIdle()) {
                     bus.fire(EventTopic.ELEVATOR, new Event.ElevatorIdle(this.id, getCurrentFloor()));
 
                     final Set<Passenger> passengers = getPassengers();
                     if (passengers.size() > 0)
-                        log.warn("Elevator {} idling with stranded passengers {}", id, passengers);
+                        log.warn("elevator={} idling with stranded passengers {}", id, passengers);
                 }
 
                 return;
             }
-        }
-    }
-
-    private void processCurrentTime(EventBus bus) {
-        // Update position based on trajectory
-        // Fire arrival event if floor is on stops
-        if (getTrajectory().shouldStop()) {
-//            unloadPassengers(bus, getCurrentFloor());
-            bus.fire(EventTopic.ELEVATOR, new Event.ElevatorArrived(this.id, getCurrentFloor()));
         }
     }
 
@@ -177,7 +191,7 @@ public class Elevator implements EventReactor {
                 bus.fire(EventTopic.PASSENGER, new Event.DropPassenger(floor, this.getId(), passenger));
             });
             toDrop.clear();
-            log.debug("Unloading elevator {} at floor {} with {} remaining", id, floor, getPassengers().size());
+            log.debug("Unloading elevator={} at floor {} with {} remaining", id, floor, getPassengers().size());
         }
     }
 
@@ -192,6 +206,8 @@ public class Elevator implements EventReactor {
             assert (dest < floors.size());
             floors.get(dest).add(passenger);
             log.debug("Loaded passenger {} total is {}", passenger, getPassengers().size());
+            if (!getTrajectory().getTurnpoints().contains(dest))
+                log.warn("elevator={} at floor={} is not planning to stop at floor {}... {}!", getId(), getCurrentFloor(), dest, getTrajectory().getTurnpoints());
         }
     }
 }

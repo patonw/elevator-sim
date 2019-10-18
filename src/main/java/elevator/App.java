@@ -4,46 +4,58 @@
 package elevator;
 
 import elevator.event.*;
-import elevator.model.Building;
-import elevator.model.ElevatorFactory;
-import elevator.model.HomingElevatorFactory;
-import elevator.model.Passenger;
+import elevator.model.*;
 import elevator.scheduling.FlockScheduler;
 import elevator.scheduling.Scheduler;
 import elevator.simulation.DeferredEventQueue;
 import elevator.simulation.FixedRateSimulator;
+import elevator.simulation.WatchdogReactor;
 import io.javalin.Javalin;
 import io.javalin.core.validation.Validator;
+import io.vavr.collection.List;
+import io.vavr.collection.Stream;
 import io.vavr.control.Try;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.Set;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
 
-public class App implements EventEmitter {
+public class App implements EventEmitter, EventReactor {
     private static final Logger log = LoggerFactory.getLogger(App.class);
 
-    final int TICK_RATE = 1000;
-    private final int NUM_FLOORS = 100;
-    private final int NUM_ELEVATORS = 10;
-    private final int[] HOME_FLOORS = {5, 10, 15, 20, 25, 45, 50, 60, 70, 80};
+    private final int NUM_WORKERS = 16;
+    private final int TICK_RATE = 100;
+    private final int NUM_FLOORS = 2000;
+    private final int NUM_ELEVATORS = 200;
+    private int[] HOME_FLOORS;
 
     private DeferredEventQueue queue;
     private Scheduler sched;
-    private SynchronizedEventBus bus;
+    private RunnableEventBus bus;
     private ElevatorFactory elevatorFactory;
     private Building building;
 
+    private AtomicLong reqs = new AtomicLong(0);
+    private AtomicLong drops = new AtomicLong(0);
+    private AtomicLong lastDrop = new AtomicLong(0);
+
     public void init() {
+        HOME_FLOORS = new int[NUM_ELEVATORS];
+        Stream.range(0, NUM_ELEVATORS).forEach(i -> {
+            HOME_FLOORS[i] = i * NUM_FLOORS / NUM_ELEVATORS;
+        });
+
         queue = new DeferredEventQueue();
         sched = new FlockScheduler();
-        bus = new SynchronizedEventBus();
+        bus = new PartitionedEventBus(1024)
+                .setTopicWorkers(EventTopic.SCHEDULING, NUM_WORKERS)
+                .setTopicWorkers(EventTopic.ELEVATOR, 4)
+                .setTopicPriority(EventTopic.ELEVATOR, Thread.MAX_PRIORITY);
+
         elevatorFactory = new HomingElevatorFactory(NUM_FLOORS, HOME_FLOORS);
 //        elevatorFactory = new ElevatorFactory(NUM_FLOORS);
 
@@ -58,14 +70,71 @@ public class App implements EventEmitter {
 
         LoggingEventListener console = new LoggingEventListener(log);
         bus.attach(console);
+        bus.attach(new WatchdogReactor());
 
-        AtomicLong drops = new AtomicLong();
-        bus.attach((me,evt) -> {
-            if (evt instanceof Event.DropPassenger) {
-                log.info("Passengers served so far {}", drops.incrementAndGet());
+        bus.attach(this); // This is also a listener for stress test monitoring
+    }
+
+    @Override
+    public void syncEvent(EventBus bus1, Event event) {
+        onEvent(bus1, event);
+    }
+
+    @Override
+    public void onEvent(EventBus me, Event evt) {
+        if (evt instanceof Event.DropPassenger) {
+            log.info("Passengers served so far {}/{}", drops.incrementAndGet(), reqs.get());
+        } else if (evt instanceof Event.ClockTick) {
+            final long clock = ((Event.ClockTick) evt).getValue();
+            if (clock % 30 == 0) {
+                log.info("*** Event Bus Queue depth: {} ***", bus.getBacklog());
+                log.info("*** Passengers served {}/{}. Last drop scheduled for {} ***", drops.get(), reqs.get(), lastDrop.get());
+                final int idling = Stream.range(0, building.getNumElevators())
+                        .map(building::getElevator)
+                        .map(Elevator::getTrajectory)
+                        .count(Trajectory::isIdle);
+
+                final Number waitingForPickup = Stream.range(0, building.getNumFloors())
+                        .map(building::getFloor)
+                        .map(Floor::getPassengers)
+                        .map(Set::size)
+                        .sum();
+
+                final Number inTransit = Stream.range(0, building.getNumElevators())
+                        .map(building::getElevator)
+                        .map(Elevator::getPassengers)
+                        .map(Set::size)
+                        .sum();
+
+                log.info("*** Idle elevators: {}/{} Passengers waiting: {} In transit: {} ***",
+                        idling, building.getNumElevators(),
+                        waitingForPickup,
+                        inTransit);
+
+                if (clock > lastDrop.get() & drops.get() < reqs.get()) {
+                    final List<Passenger> stranded = Stream.range(0, building.getNumFloors())
+                            .map(building::getFloor)
+                            .flatMap(Floor::getPassengers)
+                            .toList();
+
+                    final List<Passenger> riding = Stream.range(0, building.getNumElevators())
+                            .map(building::getElevator)
+                            .flatMap(Elevator::getPassengers)
+                            .toList();
+
+                    log.warn("*** Stranded passengers {} & {} ***", stranded, riding);
+                }
+
             }
-        });
-
+        } else if (evt instanceof Event.RequestAccepted) {
+            reqs.getAndIncrement();
+            final Long end = ((Event.RequestAccepted) evt).getRequest().getEndTime().getOrElse(0L);
+            long oldLast = lastDrop.get();
+            while (oldLast < end) {
+                lastDrop.compareAndSet(oldLast, end);
+                oldLast = lastDrop.get();
+            }
+        }
     }
 
     @Override
@@ -76,15 +145,23 @@ public class App implements EventEmitter {
         return bus;
     }
 
-    public Future<Void> start() {
-        return new FixedRateSimulator(getBus(), TICK_RATE).startAsync();
+    public CompletableFuture<Try<Void>> start() {
+        return new FixedRateSimulator(getBus(), TICK_RATE, 1).startAsync();
     }
 
     public static void main(String[] args) throws ExecutionException, InterruptedException {
         App app = new App();
-        Future<Void> task = app.start();
+        var task = app.start();
 
         Javalin server = Javalin.create().start(7000);
+        task.thenAccept(vtry -> vtry.onSuccess(x -> {
+            log.warn("??? I'm not sure how this happened but simulator shutdown spontaneously without an exception...");
+            server.stop();
+        }).onFailure(ex -> {
+            log.error("Simulator died. Shutting down.", ex);
+            server.stop();
+        }));
+
         server.config.addStaticFiles("/web");
         server.get("/passenger", ctx -> {
             Validator<Integer> origin = ctx.queryParam("origin", Integer.class)
@@ -95,16 +172,21 @@ public class App implements EventEmitter {
             ;
 
             Passenger pass = new Passenger(dest.get());
-            app.bus.fire(EventTopic.PASSENGER, new Event.ScheduleRequest(pass, origin.get()));
+            app.bus.fire(EventTopic.SCHEDULING, new Event.ScheduleRequest(pass, origin.get()));
         });
 
         server.get("/stress", ctx -> {
+            if (app.bus.getBacklog() > 10) {
+                ctx.result("Scheduling Bus is saturated. Try again later\n");
+                ctx.status(503);
+                return;
+            }
+
             Validator<Integer> n = ctx.queryParam("n", Integer.class)
                     .check(i -> i > 0);
 
             Validator<Integer> rate = ctx.queryParam("rate", Integer.class)
                     .check(i -> i > 0 && i <= app.TICK_RATE);
-
 
             final Boolean concurrent = ctx.queryParam("concurrent", Boolean.class, "false").get();
 
@@ -119,16 +201,17 @@ public class App implements EventEmitter {
                                 .getAsInt();
 
                         Passenger pass = new Passenger(dest);
-                        app.bus.fire(EventTopic.PASSENGER, new Event.ScheduleRequest(pass, orig));
+                        app.bus.fire(EventTopic.SCHEDULING, new Event.ScheduleRequest(pass, orig));
 
                         if (concurrent) {
                             if (i % rate.get() == 0)
                                 Try.run(() -> Thread.sleep(app.TICK_RATE));
-                        }
-                        else
+                        } else
                             Try.run(() -> Thread.sleep(delay));
                     })
             );
+
+            ctx.result("Launched stress test task\n");
         });
 
         task.get();

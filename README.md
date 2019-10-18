@@ -110,8 +110,9 @@ Not a rigorous proof of anything...
 
 ## Wish List
 - [ ] Coverage report for integration
-- [ ] Scheduler retry jittering
-- [ ] Request accept/reject statistics listener
+- [x] Scheduler retry jittering
+- [x] Request accept/reject statistics listener
 - [ ] Websocket event bridge for web frontend
 - [ ] Better unit test coverage - especially on Elevator
 - [ ] Factor out return-to-home behavior from HomingTrajectory to a strategy object
+- [x] Isolate event streams by topic: use separate worker threads for each topic

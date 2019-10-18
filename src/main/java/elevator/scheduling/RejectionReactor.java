@@ -17,6 +17,16 @@ import java.util.concurrent.TimeUnit;
  */
 public class RejectionReactor implements EventReactor {
     private static final Logger log = LoggerFactory.getLogger(RejectionReactor.class);
+    private static final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
+    private final int jitter;
+
+    public RejectionReactor() {
+        this(10);
+    }
+
+    public RejectionReactor(int jitter) {
+        this.jitter = jitter;
+    }
 
     @Override
     public void onEvent(EventBus bus, Event event) {
@@ -24,6 +34,14 @@ public class RejectionReactor implements EventReactor {
             return;
 
         Event.AssignRequest request = ((Event.RequestRejected) event).getRequest();
-        bus.fire(EventTopic.SCHEDULING, new Event.ScheduleRequest(request.getPassenger(), request.getFloor()));
+
+        executor.schedule(() -> {
+            bus.fire(EventTopic.SCHEDULING, new Event.ScheduleRequest(request.getPassenger(), request.getFloor()));
+        }, ThreadLocalRandom.current().nextLong(jitter), TimeUnit.MILLISECONDS);
+    }
+
+    @Override
+    public void syncEvent(EventBus bus, Event event) {
+        onEvent(bus, event);
     }
 }

@@ -29,7 +29,7 @@ public class FloorTest {
         dest.onEvent(bus, new Event.ElevatorArrived(elevator, orig));
 
         ArgumentCaptor<Event> captor = ArgumentCaptor.forClass(Event.class);
-        Mockito.verify(bus, times(1)).fire(any(EventTopic.class), captor.capture());
+        Mockito.verify(bus, times(2)).fire(any(EventTopic.class), captor.capture());
 
         assertThat(captor.getValue(), is(instanceOf(Event.LoadPassenger.class)));
     }

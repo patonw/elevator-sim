@@ -36,7 +36,7 @@ public class FixedRateSimulatorTest {
 
         Thread.sleep(1000);
         sim.shutdown();
-        runFuture.get(100, TimeUnit.MILLISECONDS);
+        runFuture.get(2000, TimeUnit.MILLISECONDS);
         assertTrue(runFuture.isDone());
 
         ArgumentCaptor<Event> captor = ArgumentCaptor.forClass(Event.class);

@@ -7,6 +7,10 @@ import io.vavr.control.Option;
 
 public class Splice {
     private static Option<Queue<Integer>> splice(int current, Queue<Integer> points, int start, int end, boolean strict, Function3<Integer, Integer, Integer, Boolean> isMonotonic) {
+        // Too many concurrency issues with accepting a request from the current floor
+        if (current == start)
+            return Option.none();
+
         int left = current;
         Queue<Integer> result = Queue.empty();
         final Iterator<Integer> it = points.iterator();
@@ -17,8 +21,8 @@ public class Splice {
 
         // Process the turnpoints up to the insertion of [start]
         while (true) {
-            if (isMonotonic.apply(left, start, right)) {
-                if (result.isEmpty() || start != left && start != right)
+            if (isMonotonic.apply(left, start, right) && result.nonEmpty()) {
+                if (start != left && start != right)
                     result = result.append(start);
                 break;
             }

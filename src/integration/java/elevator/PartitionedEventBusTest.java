@@ -1,6 +1,9 @@
 package elevator;
 
-import elevator.event.*;
+import elevator.event.Event;
+import elevator.event.EventBus;
+import elevator.event.EventReactor;
+import elevator.event.PartitionedEventBus;
 import elevator.model.Elevator;
 import elevator.model.Floor;
 import elevator.model.Passenger;
@@ -16,7 +19,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 
 // Test that bus delivers messages at all
-public class SynchronizedEventBusTest {
+public class PartitionedEventBusTest {
     final Floor floor = new Floor(0, 2);
     final Passenger passenger = new Passenger(floor, floor);
     final Elevator elevator = new Elevator(0, 10);
@@ -26,7 +29,7 @@ public class SynchronizedEventBusTest {
 
     @Test
     public void testSomething() {
-        SynchronizedEventBus bus = new SynchronizedEventBus();
+        PartitionedEventBus bus = new PartitionedEventBus();
         EventReactor mock = Mockito.mock(EventReactor.class);
 
         List<Event.ClockTick> ticks = IntStream.range(0, 10).mapToObj(Event.ClockTick::new).collect(Collectors.toList());

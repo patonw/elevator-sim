@@ -34,7 +34,7 @@ public class HomingBuildingTest {
     private static int[] homeFloors = {5, 10, 15, 20, 25};
     private DeferredEventQueue queue;
     private RRFIFOScheduler sched;
-    private SynchronizedEventBus bus;
+    private RunnableEventBus bus;
     private HomingElevatorFactory elevatorFactory;
     private Building building;
 
@@ -42,7 +42,7 @@ public class HomingBuildingTest {
     public void beforeTest() {
         queue = new DeferredEventQueue();
         sched = new RRFIFOScheduler();
-        bus = new SynchronizedEventBus();
+        bus = new PartitionedEventBus();
         elevatorFactory = new HomingElevatorFactory(numFloors, homeFloors);
 
         building = Building.builder()
@@ -88,7 +88,7 @@ public class HomingBuildingTest {
         Thread.sleep(500);
 
         ArgumentCaptor<Event> captor = ArgumentCaptor.forClass(Event.class);
-        Mockito.verify(mock, atLeast(8)).syncEvent(eq(bus), captor.capture());
+        Mockito.verify(mock, atLeast(8)).syncEvent(Mockito.any(EventBus.class), captor.capture());
         List<Event> allEvents = captor.getAllValues().stream().filter(ev -> !(ev instanceof Event.ClockTick)).collect(Collectors.toList());
         assertThat(allEvents, hasItems(instanceOf(Event.DropPassenger.class)));
 

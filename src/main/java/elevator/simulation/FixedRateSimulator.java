@@ -4,25 +4,34 @@ package elevator.simulation;
 import elevator.event.Event;
 import elevator.event.EventTopic;
 import elevator.event.RunnableEventBus;
+import io.vavr.collection.Stream;
 import io.vavr.control.Try;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
 public class FixedRateSimulator extends AbstractSimulator {
     private static final Logger log = LoggerFactory.getLogger(FixedRateSimulator.class);
     private long rate = 1000;
+    final int workers;
 
     private final ScheduledExecutorService scheduler =
             Executors.newScheduledThreadPool(1);
-    private final Semaphore shutdownSig = new Semaphore(0);
+    private final AtomicBoolean shutdownFlag = new AtomicBoolean(false);
     private AtomicLong clock = new AtomicLong(1);
 
-    public FixedRateSimulator(RunnableEventBus bus, long rate) {
+    public FixedRateSimulator(RunnableEventBus bus, long rate, int workers) {
         super(bus);
         this.rate = rate;
+        this.workers = workers;
+    }
+
+    public FixedRateSimulator(RunnableEventBus bus, long rate) {
+        this(bus, rate, 1);
     }
 
     public long getRate() {
@@ -34,7 +43,9 @@ public class FixedRateSimulator extends AbstractSimulator {
     }
 
     public void shutdown() {
-        shutdownSig.release();
+        log.info("Shutdown signal sent");
+        shutdownFlag.set(true);
+        Thread.yield();
     }
 
     /**
@@ -46,8 +57,8 @@ public class FixedRateSimulator extends AbstractSimulator {
      *
      * @return A future that can be used to join the task to the main thread.
      */
-    public Future<Void> startAsync() {
-        return CompletableFuture.runAsync(() -> Try.run(this::start));
+    public CompletableFuture<Try<Void>> startAsync() {
+        return CompletableFuture.supplyAsync(() -> Try.run(this::start));
     }
 
     /**
@@ -57,14 +68,13 @@ public class FixedRateSimulator extends AbstractSimulator {
      */
     @Override
     public void start() throws InterruptedException {
-        ScheduledFuture<?> scheduledFuture = scheduler.scheduleAtFixedRate(() -> {
+        Future<?> scheduledFuture = scheduler.scheduleAtFixedRate(() -> {
             bus.fire(EventTopic.DEFAULT, new Event.ClockTick(clock.getAndIncrement()));
         }, 100L, rate, TimeUnit.MILLISECONDS);
 
-        // Blocks until shutdown signal is given
-        bus.run(shutdownSig);
+        bus.run(shutdownFlag);
 
-        log.info("Shutting down simulation");
+        log.info("Shutting down simulation: {}", shutdownFlag);
         scheduledFuture.cancel(false);
 
         try {

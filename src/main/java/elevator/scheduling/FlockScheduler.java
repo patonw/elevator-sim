@@ -30,6 +30,11 @@ public class FlockScheduler implements Scheduler {
     }
 
     @Override
+    public void syncEvent(EventBus bus, Event event) {
+        onEvent(bus,event);
+    }
+
+    @Override
     public void onEvent(EventBus bus, Event event) {
         if (event instanceof Event.ScheduleRequest) {
             handleScheduleRequest(bus, (Event.ScheduleRequest) event);
