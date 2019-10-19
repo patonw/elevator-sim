@@ -12,6 +12,6 @@ public class ElevatorFactory {
     }
 
     public Elevator create(int id) {
-        return new Elevator(id, numFloors, new Trajectory(0,0));
+        return new Elevator(id, numFloors, Trajectory.create(0,0));
     }
 }

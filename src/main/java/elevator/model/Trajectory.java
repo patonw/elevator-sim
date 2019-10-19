@@ -10,15 +10,42 @@ import org.slf4j.LoggerFactory;
 // TODO track home floor and move towards it when idle. Add query for time-to-home
 public class Trajectory implements Cloneable {
     private static final Logger log = LoggerFactory.getLogger(Trajectory.class);
+    private IdleBehavior idleBehavior;
     private long currentTime = 0;
     private int currentFloor = 0;
     private long timeLeftOnTask = 0;
 
     private Queue<Integer> turnpoints = Queue.empty();
 
-    public Trajectory(long currentTime, int currentFloor) {
+    protected Trajectory(IdleBehavior idleBehavior, long currentTime, int currentFloor) {
+        this.idleBehavior = idleBehavior;
         this.currentTime = currentTime;
         this.currentFloor = currentFloor;
+    }
+
+    protected Trajectory(long currentTime, int currentFloor) {
+        this(new IdleBehavior(), currentTime, currentFloor);
+    }
+
+    public static Trajectory create(long currentTime, int currentFloor) {
+        return new Trajectory(new IdleBehavior(), currentTime, currentFloor);
+    }
+
+    public static Trajectory createHoming(int homeFloor, long currentTime, int currentFloor) {
+        return new Trajectory(new IdleToHome(homeFloor), currentTime, currentFloor);
+    }
+
+    @Override
+    public String toString() {
+        return "Trajectory{" +
+                "t=" + currentTime +
+                ", floor=" + currentFloor +
+                ", turnpoints=" + turnpoints +
+                '}';
+    }
+
+    protected IdleBehavior getIdleBehavior() {
+        return idleBehavior;
     }
 
     long getCurrentTime() {
@@ -48,7 +75,7 @@ public class Trajectory implements Cloneable {
     }
 
     public boolean isMoving() {
-        return turnpoints.nonEmpty();
+        return timeUntilIdle() > 0;
     }
 
     public boolean isIdle() {
@@ -56,7 +83,7 @@ public class Trajectory implements Cloneable {
     }
 
     public long timeUntilIdle() {
-        return getTimeLeftOnTask();
+        return getIdleBehavior().timeUntilIdle(this);
     }
 
     /**
@@ -185,12 +212,11 @@ public class Trajectory implements Cloneable {
 
     public int nextFloor() {
         final Queue<Integer> nextPoints = removeCompleted(); // maybe memoize?
-        if (nextPoints.isEmpty())
-            return currentFloor; // idle
-        else if (nextPoints.head() > currentFloor)
-            return currentFloor + 1;
+
+        if (nextPoints.nonEmpty())
+            return currentFloor + Integer.compare(nextPoints.head(), currentFloor);
         else
-            return currentFloor - 1;
+            return currentFloor + getIdleBehavior().nextFloor(this);
     }
 
     public int getEndFloor() {

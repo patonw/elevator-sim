@@ -3,10 +3,7 @@ package elevator.scheduling;
 import elevator.event.Event;
 import elevator.event.EventBus;
 import elevator.event.EventTopic;
-import elevator.model.Elevator;
-import elevator.model.HomingElevatorFactory;
-import elevator.model.HomingTrajectory;
-import elevator.model.Passenger;
+import elevator.model.*;
 import io.vavr.collection.List;
 import io.vavr.collection.Stream;
 import io.vavr.control.Option;
@@ -30,9 +27,9 @@ public class FlockSchedulerTest {
         Elevator[] elevators = Stream.range(0, 3).map(i -> Mockito.mock(Elevator.class)).toJavaArray(Elevator.class);
 
         long currentTime = 20;
-        Mockito.when(elevators[0].getTrajectory()).thenReturn(new HomingTrajectory(homeFloors[0], currentTime, 5).extend(8, 1));    // done at T=20, Floor=1
-        Mockito.when(elevators[1].getTrajectory()).thenReturn(new HomingTrajectory(homeFloors[1], currentTime, 7).extend(2, 15));   // <-- Already traveling this span
-        Mockito.when(elevators[2].getTrajectory()).thenReturn(new HomingTrajectory(homeFloors[2], currentTime, 9).extend(10, 13));  // done at T=24, Floor=13
+        Mockito.when(elevators[0].getTrajectory()).thenReturn(Trajectory.createHoming(homeFloors[0], currentTime, 5).extend(8, 1));    // done at T=20, Floor=1
+        Mockito.when(elevators[1].getTrajectory()).thenReturn(Trajectory.createHoming(homeFloors[1], currentTime, 7).extend(2, 15));   // <-- Already traveling this span
+        Mockito.when(elevators[2].getTrajectory()).thenReturn(Trajectory.createHoming(homeFloors[2], currentTime, 9).extend(10, 13));  // done at T=24, Floor=13
 
         scheduler.setElevators(elevators);
         Passenger p1 = new Passenger(14);
@@ -61,9 +58,9 @@ public class FlockSchedulerTest {
         Elevator[] elevators = Stream.range(0, 3).map(i -> Mockito.mock(Elevator.class)).toJavaArray(Elevator.class);
 
         long currentTime = 20;
-        Mockito.when(elevators[0].getTrajectory()).thenReturn(new HomingTrajectory(homeFloors[0], currentTime, 5).extend(8, 1));    // done at T=20, Floor=1
-        Mockito.when(elevators[1].getTrajectory()).thenReturn(new HomingTrajectory(homeFloors[1], currentTime, 7).extend(2, 15));   // done at T=38, Floor=15
-        Mockito.when(elevators[2].getTrajectory()).thenReturn(new HomingTrajectory(homeFloors[2], currentTime, 9).extend(10, 13));  // done at T=24, Floor=13
+        Mockito.when(elevators[0].getTrajectory()).thenReturn(Trajectory.createHoming(homeFloors[0], currentTime, 5).extend(8, 1));    // done at T=20, Floor=1
+        Mockito.when(elevators[1].getTrajectory()).thenReturn(Trajectory.createHoming(homeFloors[1], currentTime, 7).extend(2, 15));   // done at T=38, Floor=15
+        Mockito.when(elevators[2].getTrajectory()).thenReturn(Trajectory.createHoming(homeFloors[2], currentTime, 9).extend(10, 13));  // done at T=24, Floor=13
 
         scheduler.setElevators(elevators);
         Passenger p1 = new Passenger(10);

@@ -11,14 +11,12 @@ import static org.junit.Assert.assertTrue;
 public class HomingTrajectoryTest {
     @Test
     public void testGoHome() {
-        HomingTrajectory start = new HomingTrajectory(21, 100,20)
+        Trajectory start = new Trajectory(new IdleToHome(21), 100,20)
                 .extend(10, 5)
                 .extend(20, 31);
-        assertThat(start, is(instanceOf(HomingTrajectory.class)));
-        assertThat(start.timeToHome(), is(51L));
+        assertThat(start.timeUntilIdle(), is(51L));
 
-        HomingTrajectory current = (HomingTrajectory) start.step();
-        assertThat(current, is(instanceOf(HomingTrajectory.class)));
+        Trajectory current = start.step();
         assertThat(current.getCurrentFloor(), is(19));
         assertThat(current.getCurrentTime(), is(101L));
         assertThat(current.getTurnpoints(), is(equalTo(List.of(10, 5, 20, 31).toJavaList())));
@@ -34,7 +32,7 @@ public class HomingTrajectoryTest {
         assertThat(current.getCurrentFloor(), is(10));
         assertThat(current.getCurrentTime(), is(110L));
         assertTrue(current.shouldStop());
-        assertThat(current.timeToHome(), is(41L));
+        assertThat(current.timeUntilIdle(), is(41L));
 
         // Fast forward to last turnpoint
         for (int i=0; i<31; i++)
@@ -43,7 +41,7 @@ public class HomingTrajectoryTest {
         assertThat(current.getCurrentFloor(), is(31));
         assertThat(current.getCurrentTime(), is(141L));
         assertTrue(current.shouldStop());
-        assertThat(current.timeToHome(), is(10L));
+        assertThat(current.timeUntilIdle(), is(10L));
 
         assertThat(current.nextFloor(), is(30));
         for (int i=0; i<10; i++)
@@ -56,10 +54,10 @@ public class HomingTrajectoryTest {
 
         assertThat(current.getCurrentFloor(), is(21));
         assertThat(current.getCurrentTime(), is(161L));
-        assertThat(current.timeToHome(), is(0L));
+        assertThat(current.timeUntilIdle(), is(0L));
 
         // Check immutability
-        assertThat(start.timeToHome(), is(51L));
+        assertThat(start.timeUntilIdle(), is(51L));
     }
 
 }
