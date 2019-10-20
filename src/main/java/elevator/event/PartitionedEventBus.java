@@ -3,6 +3,7 @@ package elevator.event;
 import io.vavr.Tuple;
 import io.vavr.collection.Array;
 import io.vavr.collection.Stream;
+import io.vavr.control.Option;
 import io.vavr.control.Try;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,9 +12,6 @@ import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -41,6 +39,16 @@ public class PartitionedEventBus implements RunnableEventBus {
     public PartitionedEventBus setTopicPriority(EventTopic topic, int priority) {
         topicPriority.put(topic, priority);
         return this;
+    }
+
+    @Override
+    public Health health() {
+        return Stream.ofAll(topicBus.values())
+                .map(TopicBus::health)
+                .map(Enum::ordinal)
+                .max()
+                .map(x -> EventBus.Health.cardinal[x])
+                .getOrElse(Health.DEGRADED);
     }
 
     @Override

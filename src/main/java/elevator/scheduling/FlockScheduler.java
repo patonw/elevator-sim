@@ -6,6 +6,7 @@ import elevator.event.EventTopic;
 import elevator.model.Elevator;
 import elevator.model.Trajectory;
 
+import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.collection.List;
 import io.vavr.collection.Stream;
@@ -50,11 +51,13 @@ public class FlockScheduler implements Scheduler {
                 .map(Elevator::getTrajectory)
                 .toList();
 
-        List<Trajectory> newTrajectories = oldTrajectories.map(t -> t.augment(start, dest));
+        List<Option<Trajectory>> newTrajectories = oldTrajectories.map(t -> t.augmentOpt(start, dest));
 
         Option<Tuple2<Trajectory, Integer>> bestTrajectory = newTrajectories
                 .zipWithIndex()     // Add the index
-                .minBy(pair -> pair._1.timeUntilIdle());  // Minimize by timeToHome
+                .filter(p -> p._1.isDefined())
+                .map(p -> Tuple.of(p._1.get(), p._2))
+                .minBy(p -> p._1.timeUntilIdle());  // Minimize by timeToHome
 
         Integer assignee = bestTrajectory.get()._2;
         long timeLeftOnTask = bestTrajectory.get()._1.getTimeLeftOnTask();

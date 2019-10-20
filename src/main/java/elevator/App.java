@@ -22,7 +22,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.IntStream;
 
 public class App implements EventEmitter, EventReactor {
     private static final Logger log = LoggerFactory.getLogger(App.class);
@@ -51,7 +50,7 @@ public class App implements EventEmitter, EventReactor {
 
         queue = new DeferredEventQueue();
         sched = new FlockScheduler();
-        bus = new PartitionedEventBus(1024)
+        bus = new PartitionedEventBus(2048)
                 .setTopicWorkers(EventTopic.SCHEDULING, NUM_WORKERS)
                 .setTopicWorkers(EventTopic.ELEVATOR, 4)
                 .setTopicPriority(EventTopic.ELEVATOR, Thread.MAX_PRIORITY);
@@ -87,7 +86,7 @@ public class App implements EventEmitter, EventReactor {
         } else if (evt instanceof Event.ClockTick) {
             final long clock = ((Event.ClockTick) evt).getValue();
             if (clock % 30 == 0) {
-                log.info("*** Event Bus Queue depth: {} ***", bus.getBacklog());
+                log.info("*** Event Bus Queue health: {} depth: {} ***", bus.health(), bus.getBacklog());
                 log.info("*** Passengers served {}/{}. Last drop scheduled for {} ***", drops.get(), reqs.get(), lastDrop.get());
                 final int idling = Stream.range(0, building.getNumElevators())
                         .map(building::getElevator)
@@ -134,6 +133,8 @@ public class App implements EventEmitter, EventReactor {
                 lastDrop.compareAndSet(oldLast, end);
                 oldLast = lastDrop.get();
             }
+        } else if (evt instanceof Event.MissedConnection) {
+            reqs.getAndDecrement();
         }
     }
 
@@ -152,6 +153,7 @@ public class App implements EventEmitter, EventReactor {
     public static void main(String[] args) throws ExecutionException, InterruptedException {
         App app = new App();
         var task = app.start();
+        final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
 
         Javalin server = Javalin.create().start(7000);
         task.thenAccept(vtry -> vtry.onSuccess(x -> {
@@ -176,7 +178,9 @@ public class App implements EventEmitter, EventReactor {
         });
 
         server.get("/stress", ctx -> {
-            if (app.bus.getBacklog() > 10) {
+            final long start = System.currentTimeMillis();
+
+            if (app.bus.health() != EventBus.Health.GOOD) {
                 ctx.result("Scheduling Bus is saturated. Try again later\n");
                 ctx.status(503);
                 return;
@@ -186,32 +190,49 @@ public class App implements EventEmitter, EventReactor {
                     .check(i -> i > 0);
 
             Validator<Integer> rate = ctx.queryParam("rate", Integer.class)
-                    .check(i -> i > 0 && i <= app.TICK_RATE);
+                    .check(i -> i > 0 && i <= (10 * app.TICK_RATE));
 
-            final Boolean concurrent = ctx.queryParam("concurrent", Boolean.class, "false").get();
+            CountDownLatch latch = new CountDownLatch(n.get());
+            long delay = (1000 * app.TICK_RATE) / rate.get();
+            final ScheduledFuture<?> submitter = executor.scheduleAtFixedRate(() -> {
+                if (app.bus.health() != EventBus.Health.GOOD)
+                    return;
 
-            int delay = app.TICK_RATE / rate.get();
+                if (latch.getCount() == 0)
+                    return;
 
-            CompletableFuture.runAsync(() -> IntStream.range(0, n.get())
-                    .forEach(i -> {
-                        int orig = ThreadLocalRandom.current().nextInt(0, app.NUM_FLOORS);
-                        int dest = ThreadLocalRandom.current().ints(0, app.NUM_FLOORS)
-                                .filter(d -> d != orig)
-                                .findFirst()
-                                .getAsInt();
+                int orig = ThreadLocalRandom.current().nextInt(0, app.NUM_FLOORS);
+                int dest = ThreadLocalRandom.current().ints(0, app.NUM_FLOORS)
+                        .filter(d -> d != orig)
+                        .findFirst()
+                        .getAsInt();
 
-                        Passenger pass = new Passenger(dest);
-                        app.bus.fire(EventTopic.SCHEDULING, new Event.ScheduleRequest(pass, orig));
-
-                        if (concurrent) {
-                            if (i % rate.get() == 0)
-                                Try.run(() -> Thread.sleep(app.TICK_RATE));
-                        } else
-                            Try.run(() -> Thread.sleep(delay));
-                    })
-            );
+                Passenger pass = new Passenger(dest);
+                app.bus.fire(EventTopic.SCHEDULING, new Event.ScheduleRequest(pass, orig));
+                latch.countDown();
+            }, 0, delay, TimeUnit.MICROSECONDS);
 
             ctx.result("Launched stress test task\n");
+
+            latch.await();
+            submitter.cancel(false);
+
+            final long finished = System.currentTimeMillis();
+            final long dt = finished - start;
+            ctx.result(String.format("Finished submitting %d requests in %dms. Effective rate is %d/s%n", n.get(), dt, (n.get() * 1000) / dt));
+        });
+
+        server.sse("/sse", client -> {;
+            System.out.println("Client connected");
+
+            final ScheduledFuture<?> timer = executor.scheduleAtFixedRate(() -> {
+                client.sendEvent("scheduled", "Hello, SSE");
+            }, 0, 2, TimeUnit.SECONDS);
+
+            client.onClose(() -> {
+                timer.cancel(false);
+                System.out.println("Client disconnected");
+            });
         });
 
         task.get();

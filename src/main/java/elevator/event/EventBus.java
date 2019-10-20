@@ -3,6 +3,18 @@ package elevator.event;
 import java.util.EnumSet;
 
 public interface EventBus {
+    enum Health {
+        GOOD,
+        DEGRADED,
+        CRITICAL;
+
+        public static final Health[] cardinal = values();
+    }
+
+    default Health health() {
+        return Health.GOOD;
+    }
+
     /**
      * Attaches a reactor to the event bus such that any events on the subscribed
      * topic will be delivered to the reactor.

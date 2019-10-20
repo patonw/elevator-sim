@@ -4,6 +4,7 @@ import elevator.event.EventBus;
 import elevator.event.EventReactor;
 import elevator.event.EventTopic;
 import elevator.scheduling.RejectionReactor;
+import elevator.scheduling.ReschedulingReactor;
 import elevator.scheduling.Scheduler;
 import elevator.simulation.DeferredEventQueue;
 import io.vavr.collection.List;
@@ -61,6 +62,7 @@ public class Building implements Cloneable {
         private int numElevators;
         private ElevatorFactory elevatorFactory;
         private EventReactor rejectionHandler = new RejectionReactor();
+        private EventReactor reschedReactor = new ReschedulingReactor();
         private List<EventReactor> reactors = List.empty();
 
         public Builder setElevatorFactory(ElevatorFactory factory) {
@@ -121,6 +123,7 @@ public class Building implements Cloneable {
 
                 // TODO expose builders
                 bus.attach(EnumSet.of(EventTopic.SCHEDULING), rejectionHandler);
+                bus.attach(EnumSet.of(EventTopic.PASSENGER), reschedReactor);
                 reactors.forEach(bus::attach);
 
                 clone.floors = new Floor[numFloors];

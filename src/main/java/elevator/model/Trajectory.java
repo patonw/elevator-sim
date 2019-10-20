@@ -204,6 +204,15 @@ public class Trajectory implements Cloneable {
                 .getOrElse(() -> extend(start,end));
     }
 
+    // Starting a new trajectory on the current floor leads to strange issues
+    public Option<Trajectory> augmentOpt(int start, int end) {
+        if (start == currentFloor)
+            return Option.none();
+        else
+            return Option.some(augment(start,end));
+    }
+
+
     public boolean includes(int start, int end) {
         return insertSegment(start, end)
                 .map(newT -> newT.getTimeLeftOnTask() == this.getTimeLeftOnTask())

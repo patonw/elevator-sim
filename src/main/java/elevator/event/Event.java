@@ -208,7 +208,7 @@ public interface Event {
 
         @Override
         public String toString() {
-            return String.format("ElevatorArrived(elevator=%d, floor=%d, clock=%d", elevator, floor, clock);
+            return String.format("ElevatorArrived(elevator=%d, floor=%d, clock=%d)", elevator, floor, clock);
         }
     }
 
@@ -332,6 +332,39 @@ public interface Event {
         @Override
         public String toString() {
             return String.format("ElevatorIdle(elevator=%d, floor=%d)", elevator, floor);
+        }
+    }
+
+    public class MissedConnection implements Event {
+        private final int floor;
+        private final int elevator;
+        private final Passenger passenger;
+
+        public MissedConnection(int floor, int elevatorId, Passenger passenger) {
+            this.floor = floor;
+            this.elevator = elevatorId;
+            this.passenger = passenger;
+        }
+
+        public int getFloor() {
+            return floor;
+        }
+
+        public int getElevator() {
+            return elevator;
+        }
+
+        public Passenger getPassenger() {
+            return passenger;
+        }
+
+        @Override
+        public String toString() {
+            return "MissedConnection{" +
+                    "floor=" + floor +
+                    ", elevator=" + elevator +
+                    ", passenger=" + passenger +
+                    '}';
         }
     }
 }

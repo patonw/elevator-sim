@@ -6,11 +6,13 @@ import elevator.event.EventReactor;
 import elevator.event.EventTopic;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 public class Floor implements EventReactor {
     private final int id;
     private final ArrayList<Set<Passenger>> elevators;
+    private AtomicLong clock = new AtomicLong(0);
 
     public Floor(int id, int numElevators) {
         this.id = id;
@@ -48,7 +50,10 @@ public class Floor implements EventReactor {
 
     @Override
     public void onEvent(EventBus bus, Event event) {
-        if (event instanceof Event.ElevatorArrived) {
+        if (event instanceof Event.ClockTick) {
+            clock.set(((Event.ClockTick) event).getValue());
+        }
+        else if (event instanceof Event.ElevatorArrived) {
             handleElevatorArrived(bus, (Event.ElevatorArrived) event);
         }
         else if (event instanceof Event.RequestAccepted) {
@@ -66,12 +71,23 @@ public class Floor implements EventReactor {
         if (this.getId() != event.getFloor())
             return;
 
+        final long arrivalTime = event.getClock();
+
+
         int elevatorId = event.getElevator();
         synchronized (elevators) {
             Set<Passenger> toLoad = elevators.get(elevatorId);
-            toLoad.forEach(passenger -> {
-                bus.fire(EventTopic.PASSENGER, new Event.LoadPassenger(this.getId(), elevatorId, passenger));
-            });
+
+            if (arrivalTime < clock.get()) {
+                toLoad.forEach(passenger -> {
+                    bus.fire(EventTopic.PASSENGER, new Event.MissedConnection(this.getId(), elevatorId, passenger));
+                });
+            }
+            else {
+                toLoad.forEach(passenger -> {
+                    bus.fire(EventTopic.PASSENGER, new Event.LoadPassenger(this.getId(), elevatorId, passenger));
+                });
+            }
             toLoad.clear();
         }
     }

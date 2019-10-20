@@ -20,6 +20,7 @@ public class TopicBus implements RunnableEventBus {
     private static final Logger log = LoggerFactory.getLogger(TopicBus.class);
     private final EventTopic topic;
     private final EventBus parent;
+    private final int capacity;
 
     private AtomicReference<Set<EventReactor>> reactors = new AtomicReference<>(HashSet.empty());
     private BlockingQueue<Event> queue;
@@ -27,7 +28,18 @@ public class TopicBus implements RunnableEventBus {
     public TopicBus(EventTopic topic, EventBus parent, int queueDepth) {
         this.topic = topic;
         this.parent = parent;
+        this.capacity = queueDepth;
         this.queue = new LinkedBlockingQueue<>(queueDepth);
+    }
+
+    @Override
+    public Health health() {
+        if (queue.size() > 16)
+            return Health.DEGRADED;
+        else if (queue.remainingCapacity() < capacity / 2)
+            return Health.CRITICAL;
+        else
+            return Health.GOOD;
     }
 
     /**
