@@ -3,6 +3,7 @@ package elevator.simulation;
 
 import elevator.event.Event;
 import elevator.event.EventTopic;
+import elevator.event.PartitionedEventBus;
 import elevator.event.RunnableEventBus;
 import io.vavr.collection.Stream;
 import io.vavr.control.Try;
@@ -72,7 +73,10 @@ public class FixedRateSimulator extends AbstractSimulator {
             bus.fire(EventTopic.DEFAULT, new Event.ClockTick(clock.getAndIncrement()));
         }, 100L, rate, TimeUnit.MILLISECONDS);
 
-        bus.run(shutdownFlag);
+        if (bus instanceof PartitionedEventBus)
+            ((PartitionedEventBus) bus).dynamicRun(shutdownFlag);
+        else
+            bus.run(shutdownFlag);
 
         log.info("Shutting down simulation: {}", shutdownFlag);
         scheduledFuture.cancel(false);

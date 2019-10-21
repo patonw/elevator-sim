@@ -6,9 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.EnumSet;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -42,16 +40,20 @@ public class TopicBus implements RunnableEventBus {
             return Health.GOOD;
     }
 
+    public EventTopic getTopic() {
+        return topic;
+    }
+
     /**
      * Users should not call this directly.
      * The parent bus will delegate attachers to this bus when the topic matches.
      *
-     * @param topics Set of topics to subscribe to
+     * @param topics  Set of topics to subscribe to
      * @param reactor The object that will be notified of incoming events
      */
     @Override
     public void attach(EnumSet<EventTopic> topics, EventReactor reactor) {
-        assert(topics.contains(topic));
+        assert (topics.contains(topic));
 
         while (true) {
             final Set<EventReactor> oldValue = reactors.get();
@@ -71,8 +73,7 @@ public class TopicBus implements RunnableEventBus {
             } catch (InterruptedException e) {
                 log.warn("Interrupted while firing event", e);
             }
-        }
-        else {
+        } else {
             parent.fire(topic, event);
         }
     }
@@ -88,12 +89,13 @@ public class TopicBus implements RunnableEventBus {
     @Override
     public int process(int limit) {
         int ctr = 0;
-        for (int i=0; i<limit; i++) {
+        for (int i = 0; i < limit; i++) {
             Event event = queue.poll();
             if (event == null)
                 break;
 
             dispatch(event);
+            ++ctr;
         }
 
         return ctr;
@@ -108,6 +110,29 @@ public class TopicBus implements RunnableEventBus {
 
             if (shutdownFlag.get()) {
                 return;
+            }
+        }
+    }
+
+    /**
+     * Runs one event loop in the current thread that can spawn additional workers when it starts to fall behind.
+     * <p>
+     * Each worker will process a set number of events before exiting or exit when the queue becomes empty.
+     *
+     * @param shutdownFlag
+     * @param executor
+     * @param maxWorkers
+     * @throws InterruptedException
+     */
+    public void dynamicRun(AtomicBoolean shutdownFlag, ExecutorService executor, int maxWorkers) throws InterruptedException {
+        OverloadStrategy overloadStrategy = new OverloadStrategy(executor, maxWorkers);
+
+        while (!shutdownFlag.get()) {
+            Event event = queue.poll(100, TimeUnit.MILLISECONDS);
+
+            if (event != null) {
+                overloadStrategy.apply(this);
+                dispatch(event);
             }
         }
     }

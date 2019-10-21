@@ -12,6 +12,8 @@ import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -20,6 +22,7 @@ public class PartitionedEventBus implements RunnableEventBus {
     EnumMap<EventTopic, TopicBus> topicBus = new EnumMap<>(EventTopic.class);
     EnumMap<EventTopic, Integer> topicWorkers = new EnumMap<>(EventTopic.class);
     EnumMap<EventTopic, Integer> topicPriority = new EnumMap<>(EventTopic.class);
+    private ExecutorService executors = Executors.newCachedThreadPool(); // TODO configurable
 
     public PartitionedEventBus(int queueDepth) {
         Arrays.stream(EventTopic.values()).forEach(topic -> {
@@ -59,6 +62,31 @@ public class PartitionedEventBus implements RunnableEventBus {
         });
 
         return ctr.get();
+    }
+
+    public void dynamicRun(AtomicBoolean shutdownFlag) throws InterruptedException {
+        final Array<EventTopic> topics = Array.of(EventTopic.values());
+        // TODO configurable
+
+        CountDownLatch childLatch = new CountDownLatch(topics.length());
+        topics.map(topic -> {
+            int numWorkers = topicWorkers.getOrDefault(topic, 1);
+            TopicBus bus = topicBus.get(topic);
+            final Integer priority = topicPriority.getOrDefault(topic, Thread.NORM_PRIORITY);
+
+            var ths = new Thread(() ->
+                    Try.run(() -> {
+                        bus.dynamicRun(shutdownFlag, executors, numWorkers);
+                    }).onFailure(ex -> {
+                        log.error("Topic thread died. Shutting down", ex);
+                        shutdownFlag.set(true);
+                    }).andFinally(childLatch::countDown));
+            ths.setName(String.format("%-6.6s", topic.name()));
+            ths.setPriority(priority);
+            ths.start();
+            return ths;
+        });
+        childLatch.await();
     }
 
     @Override
