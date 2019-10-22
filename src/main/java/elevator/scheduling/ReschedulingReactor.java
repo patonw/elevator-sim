@@ -14,7 +14,7 @@ public class ReschedulingReactor implements EventReactor {
             final Passenger passenger = missed.getPassenger();
             final int floor = missed.getFloor();
 
-            bus.fire(EventTopic.SCHEDULING, new Event.ScheduleRequest(passenger, floor));
+            bus.fireTopic(EventTopic.SCHEDULING, new Event.ScheduleRequest(passenger, floor));
         }
     }
 

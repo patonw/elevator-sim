@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 
 public class LoggingEventListener implements EventReactor {
     private static Logger singleton = LoggerFactory.getLogger(LoggingEventListener.class);
-    private Logger log = LoggerFactory.getLogger(LoggingEventListener.class);
+    private Logger log;
     private long simTime = 0;
 
     public LoggingEventListener(Logger log) {
@@ -30,6 +30,6 @@ public class LoggingEventListener implements EventReactor {
             simTime = ((Event.ClockTick) event).getValue();
         }
 
-        log.info(String.format("{T=%04d} %s", simTime, event));
+        log.info(String.format("{T=%04d} %s", simTime, event.toMessage()));
     }
 }

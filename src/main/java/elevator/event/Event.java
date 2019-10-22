@@ -4,11 +4,14 @@ import elevator.model.Elevator;
 import elevator.model.Floor;
 import elevator.model.Passenger;
 import io.vavr.control.Option;
+import net.openhft.chronicle.wire.AbstractMarshallable;
 
 import java.util.Objects;
 
 public interface Event {
-    class ClockTick implements Event {
+    String toMessage();
+
+    class ClockTick extends AbstractMarshallable implements Event {
         private long value;
 
         public ClockTick(long value) {
@@ -20,12 +23,12 @@ public interface Event {
         }
 
         @Override
-        public String toString() {
+        public String toMessage() {
             return String.format("ClockTick(%d)", value);
         }
     }
 
-    class LoadPassenger implements Event {
+    class LoadPassenger extends AbstractMarshallable implements Event {
         private int floor;
         private int elevator;
         private Passenger passenger;
@@ -68,12 +71,12 @@ public interface Event {
         }
 
         @Override
-        public String toString() {
+        public String toMessage() {
             return String.format("LoadPassenger(%s, floor=%d, elevator=%d)", passenger, floor, elevator);
         }
     }
 
-    class DropPassenger implements Event {
+    class DropPassenger extends AbstractMarshallable implements Event {
         private int floor;
         private int elevator;
         private Passenger passenger;
@@ -116,12 +119,12 @@ public interface Event {
         }
 
         @Override
-        public String toString() {
+        public String toMessage() {
             return String.format("DropPassenger(%s, floor=%d, elevator=%d)", passenger, floor, elevator);
         }
     }
 
-    class AssignRequest implements Event {
+    class AssignRequest extends AbstractMarshallable implements Event {
         private final Passenger passenger;
         private final int floor;
         private final int elevator;
@@ -154,7 +157,7 @@ public interface Event {
 
 
         @Override
-        public String toString() {
+        public String toMessage() {
             return String.format("AssignRequest(%s, floor=%d, elevator=%d, deltaT=%s, endTime=%s)", passenger, floor, elevator, timeLeftOnTask, endTime);
         }
 
@@ -179,7 +182,7 @@ public interface Event {
         }
     }
 
-    class ElevatorArrived implements Event {
+    class ElevatorArrived extends AbstractMarshallable implements Event {
         private final int elevator;
         private final int floor;
         private final long clock;
@@ -207,12 +210,12 @@ public interface Event {
         }
 
         @Override
-        public String toString() {
+        public String toMessage() {
             return String.format("ElevatorArrived(elevator=%d, floor=%d, clock=%d)", elevator, floor, clock);
         }
     }
 
-    class ScheduleRequest implements Event {
+    class ScheduleRequest extends AbstractMarshallable implements Event {
         private final Passenger passenger;
         private final int start;
         private final int dest;
@@ -240,12 +243,12 @@ public interface Event {
         }
 
         @Override
-        public String toString() {
+        public String toMessage() {
             return String.format("ScheduleRequest(%s, start=%d, dest=%d)", passenger, start, dest);
         }
     }
 
-    class RequestAccepted implements Event {
+    class RequestAccepted extends AbstractMarshallable implements Event {
         private final AssignRequest request;
 
         public RequestAccepted(AssignRequest request) {
@@ -257,12 +260,12 @@ public interface Event {
         }
 
         @Override
-        public String toString() {
-            return String.format("RequestAccepted(%s)", request);
+        public String toMessage() {
+            return String.format("RequestAccepted(%s)", request.toMessage());
         }
     }
 
-    class RequestRejected implements Event {
+    class RequestRejected extends AbstractMarshallable implements Event {
         private final AssignRequest request;
 
         public RequestRejected(AssignRequest request) {
@@ -274,12 +277,12 @@ public interface Event {
         }
 
         @Override
-        public String toString() {
-            return String.format("RequestRejected(%s)", request);
+        public String toMessage() {
+            return String.format("RequestRejected(%s)", request.toMessage());
         }
     }
 
-    class PassengerWaiting implements Event {
+    class PassengerWaiting extends AbstractMarshallable implements Event {
         private Passenger passenger;
         private int floor;
         private int elevator;
@@ -303,7 +306,7 @@ public interface Event {
         }
 
         @Override
-        public String toString() {
+        public String toMessage() {
             return "PassengerWaiting{" +
                     "passenger=" + passenger +
                     ", floor=" + floor +
@@ -312,7 +315,7 @@ public interface Event {
         }
     }
 
-    class ElevatorIdle implements Event {
+    class ElevatorIdle extends AbstractMarshallable implements Event {
         private final int elevator;
         private final int floor;
 
@@ -330,12 +333,12 @@ public interface Event {
         }
 
         @Override
-        public String toString() {
+        public String toMessage() {
             return String.format("ElevatorIdle(elevator=%d, floor=%d)", elevator, floor);
         }
     }
 
-    public class MissedConnection implements Event {
+    class MissedConnection extends AbstractMarshallable implements Event {
         private final int floor;
         private final int elevator;
         private final Passenger passenger;
@@ -359,7 +362,7 @@ public interface Event {
         }
 
         @Override
-        public String toString() {
+        public String toMessage() {
             return "MissedConnection{" +
                     "floor=" + floor +
                     ", elevator=" + elevator +

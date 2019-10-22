@@ -3,7 +3,6 @@ package elevator.event;
 import io.vavr.Tuple;
 import io.vavr.collection.Array;
 import io.vavr.collection.Stream;
-import io.vavr.control.Option;
 import io.vavr.control.Try;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,7 +69,7 @@ public class PartitionedEventBus implements RunnableEventBus {
 
         CountDownLatch childLatch = new CountDownLatch(topics.length());
         topics.map(topic -> {
-            int numWorkers = topicWorkers.getOrDefault(topic, 1);
+            int numWorkers = topicWorkers.getOrDefault(topic, 0);
             TopicBus bus = topicBus.get(topic);
             final Integer priority = topicPriority.getOrDefault(topic, Thread.NORM_PRIORITY);
 
@@ -127,15 +126,15 @@ public class PartitionedEventBus implements RunnableEventBus {
     }
 
     @Override
-    public void attach(EnumSet<EventTopic> topics, EventReactor reactor) {
+    public void attachTopic(EnumSet<EventTopic> topics, EventReactor reactor) {
         topics.forEach(topic -> {
-            topicBus.get(topic).attach(topics, reactor);
+            topicBus.get(topic).attachTopic(topics, reactor);
         });
     }
 
     @Override
-    public void fire(EventTopic topic, Event event) {
-        topicBus.get(topic).fire(topic, event);
+    public void fireTopic(EventTopic topic, Event event) {
+        topicBus.get(topic).fireTopic(topic, event);
     }
 
     @Override

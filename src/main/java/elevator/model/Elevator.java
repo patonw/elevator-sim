@@ -100,7 +100,7 @@ public class Elevator implements EventReactor {
 
         final int floor = event.getFloor();
         if (floor == getCurrentFloor())
-            bus.fire(EventTopic.ELEVATOR, new Event.ElevatorArrived(this.id, getCurrentFloor(), getTrajectory().getCurrentTime()));
+            bus.fireTopic(EventTopic.ELEVATOR, new Event.ElevatorArrived(this.id, getCurrentFloor(), getTrajectory().getCurrentTime()));
 
     }
 
@@ -122,7 +122,7 @@ public class Elevator implements EventReactor {
             // For a busy elevator that is already on a task, however, remaining time should not vary between clock ticks
             // unless the start of the request is the previous floor.
             if (event.getEndTime().isDefined() && event.getEndTime().get() != newTraj.getEndTime()) {
-                bus.fire(EventTopic.SCHEDULING, new Event.RequestRejected(event));
+                bus.fireTopic(EventTopic.SCHEDULING, new Event.RequestRejected(event));
                 return;
             }
 
@@ -130,7 +130,7 @@ public class Elevator implements EventReactor {
             if (trajectory.compareAndSet(oldTraj, newTraj)) {
                 log.debug("elevator={} at floor {} accepting request for {} to {}. ", id, getCurrentFloor(), orig, dest);
                 log.debug("Trajectory={} changed from {} to {}", getId(), oldTraj, newTraj);
-                bus.fire(EventTopic.ELEVATOR, new Event.RequestAccepted(event));
+                bus.fireTopic(EventTopic.ELEVATOR, new Event.RequestAccepted(event));
                 Thread.yield();
 
                 return;
@@ -156,10 +156,10 @@ public class Elevator implements EventReactor {
             assert(newTraj.getCurrentTime() == now);
             if (trajectory.compareAndSet(oldTraj, newTraj)) {
                 if (getTrajectory().shouldStop())
-                    bus.fire(EventTopic.ELEVATOR, new Event.ElevatorArrived(this.id, getCurrentFloor(), now));
+                    bus.fireTopic(EventTopic.ELEVATOR, new Event.ElevatorArrived(this.id, getCurrentFloor(), now));
 
                 if (oldTraj.isMoving() && getTrajectory().isIdle()) {
-                    bus.fire(EventTopic.ELEVATOR, new Event.ElevatorIdle(this.id, getCurrentFloor()));
+                    bus.fireTopic(EventTopic.ELEVATOR, new Event.ElevatorIdle(this.id, getCurrentFloor()));
 
                     final Set<Passenger> passengers = getPassengers();
                     if (passengers.size() > 0)
@@ -188,7 +188,7 @@ public class Elevator implements EventReactor {
                 return;
 
             toDrop.forEach(passenger -> {
-                bus.fire(EventTopic.PASSENGER, new Event.DropPassenger(floor, this.getId(), passenger));
+                bus.fireTopic(EventTopic.PASSENGER, new Event.DropPassenger(floor, this.getId(), passenger));
             });
             toDrop.clear();
             log.debug("Unloading elevator={} at floor {} with {} remaining", id, floor, getPassengers().size());

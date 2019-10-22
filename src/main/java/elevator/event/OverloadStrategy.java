@@ -33,7 +33,7 @@ public class OverloadStrategy {
         EventTopic topic = topicBus.getTopic();
 
         final int me = workerId.incrementAndGet() % 100;
-        final int sleepTime = me % maxWorkers;
+        final int sleepTime = concurrentWorkers.get() % maxWorkers;
         concurrentWorkers.getAndIncrement();
 
         log.info("Topic bus for {} spawning worker #{} ({}/{}) to handle load", topic, me, concurrentWorkers.get(), maxWorkers);

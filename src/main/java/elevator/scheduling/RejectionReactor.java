@@ -36,7 +36,7 @@ public class RejectionReactor implements EventReactor {
         Event.AssignRequest request = ((Event.RequestRejected) event).getRequest();
 
         executor.schedule(() -> {
-            bus.fire(EventTopic.SCHEDULING, new Event.ScheduleRequest(request.getPassenger(), request.getFloor()));
+            bus.fireTopic(EventTopic.SCHEDULING, new Event.ScheduleRequest(request.getPassenger(), request.getFloor()));
         }, ThreadLocalRandom.current().nextLong(jitter), TimeUnit.MILLISECONDS);
     }
 

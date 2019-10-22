@@ -35,7 +35,7 @@ public class ElevatorTest {
         assertThat(elevator.getPassengers(), is(empty()));
 
         ArgumentCaptor<Event> captor = ArgumentCaptor.forClass(Event.class);
-        Mockito.verify(bus, times(1)).fire(any(EventTopic.class), captor.capture());
+        Mockito.verify(bus, times(1)).fireTopic(any(EventTopic.class), captor.capture());
 
         assertThat(captor.getValue(), is(instanceOf(Event.DropPassenger.class)));
         Event.DropPassenger dropped = (Event.DropPassenger) captor.getValue();

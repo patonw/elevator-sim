@@ -5,7 +5,6 @@ import elevator.event.Event;
 import elevator.event.EventTopic;
 import elevator.event.PartitionedEventBus;
 import elevator.event.RunnableEventBus;
-import io.vavr.collection.Stream;
 import io.vavr.control.Try;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,7 +12,6 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 
 public class FixedRateSimulator extends AbstractSimulator {
     private static final Logger log = LoggerFactory.getLogger(FixedRateSimulator.class);
@@ -70,7 +68,7 @@ public class FixedRateSimulator extends AbstractSimulator {
     @Override
     public void start() throws InterruptedException {
         Future<?> scheduledFuture = scheduler.scheduleAtFixedRate(() -> {
-            bus.fire(EventTopic.DEFAULT, new Event.ClockTick(clock.getAndIncrement()));
+            bus.fireTopic(EventTopic.DEFAULT, new Event.ClockTick(clock.getAndIncrement()));
         }, 100L, rate, TimeUnit.MILLISECONDS);
 
         if (bus instanceof PartitionedEventBus)

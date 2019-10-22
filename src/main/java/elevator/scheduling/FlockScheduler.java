@@ -62,6 +62,6 @@ public class FlockScheduler implements Scheduler {
         Integer assignee = bestTrajectory.get()._2;
         long timeLeftOnTask = bestTrajectory.get()._1.getTimeLeftOnTask();
         long endTime = bestTrajectory.get()._1.getEndTime();
-        bus.fire(EventTopic.SCHEDULING, new Event.AssignRequest(event.getPassenger(), event.getStart(), assignee, timeLeftOnTask, endTime));
+        bus.fireTopic(EventTopic.SCHEDULING, new Event.AssignRequest(event.getPassenger(), event.getStart(), assignee, timeLeftOnTask, endTime));
     }
 }

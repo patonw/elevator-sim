@@ -30,6 +30,6 @@ public class RRFIFOScheduler implements Scheduler {
     private void handleScheduleRequest(EventBus bus, Event.ScheduleRequest event) {
         int assignee = ctr.getAndIncrement() % elevators.length;
 
-        bus.fire(EventTopic.SCHEDULING, new Event.AssignRequest(event.getPassenger(), event.getStart(), assignee));
+        bus.fireTopic(EventTopic.SCHEDULING, new Event.AssignRequest(event.getPassenger(), event.getStart(), assignee));
     }
 }

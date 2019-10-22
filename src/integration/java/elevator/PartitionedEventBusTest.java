@@ -37,11 +37,11 @@ public class PartitionedEventBusTest {
 
         bus.fire(ticks.get(0));
         bus.fire(loadEvent);
-        bus.process();
+        bus.processAll();
 
 
         bus.fire(ticks.get(1));
-        bus.process();
+        bus.processAll();
 
 
         // These are not processed:

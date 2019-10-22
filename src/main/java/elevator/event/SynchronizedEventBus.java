@@ -22,7 +22,7 @@ public class SynchronizedEventBus implements RunnableEventBus {
 
 
     @Override
-    public void attach(EnumSet<EventTopic> topics, EventReactor listener) {
+    public void attachTopic(EnumSet<EventTopic> topics, EventReactor listener) {
         // TODO implement topics
         while (true) {
             final Set<EventReactor> oldValue = allTopics.get();
@@ -50,7 +50,7 @@ public class SynchronizedEventBus implements RunnableEventBus {
      * @param event
      */
     @Override
-    public void fire(EventTopic topic, Event event) {
+    public void fireTopic(EventTopic topic, Event event) {
         try {
             queue.put(Tuple.of(topic, event));
         } catch (InterruptedException e) {

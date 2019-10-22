@@ -22,10 +22,10 @@ public interface EventBus {
      * @param topics Set of topics to subscribe to
      * @param reactor The object that will be notified of incoming events
      */
-    void attach(EnumSet<EventTopic> topics, EventReactor reactor);
+    void attachTopic(EnumSet<EventTopic> topics, EventReactor reactor);
     
     default void attach(EventReactor listener) {
-        attach(EnumSet.allOf(EventTopic.class), listener);
+        attachTopic(EnumSet.allOf(EventTopic.class), listener);
     }
 
     /**
@@ -37,9 +37,9 @@ public interface EventBus {
      * @param topic The topic of the message.
      * @param event The event to broadcast
      */
-    void fire(EventTopic topic, Event event);
+    void fireTopic(EventTopic topic, Event event);
 
     default void fire(Event event) {
-        fire(EventTopic.DEFAULT, event);
+        fireTopic(EventTopic.DEFAULT, event);
     }
 }

@@ -31,7 +31,7 @@ public class OfflineSimulator extends AbstractSimulator {
                 .takeWhile(tick -> tick.getValue() <= limit)
                 .forEach(tick -> {
                     bus.fire(tick);
-                    bus.process();
+                    bus.processAll();
                 });
     }
 }

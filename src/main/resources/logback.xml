@@ -13,8 +13,19 @@
         </encoder>
     </appender>
 
+    <appender name="MONITOR" class="ch.qos.logback.core.FileAppender">
+        <file>/tmp/elevatorMonitor.log</file>
+        <append>false</append>
+        <encoder>
+            <pattern>%-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+        </encoder>
+    </appender>
     <logger name="elevator" level="INFO">
         <appender-ref ref="FILE" />
+    </logger>
+
+    <logger name="monitor.elevator.Monitoring" level="INFO">
+        <appender-ref ref="MONITOR" />
     </logger>
 
     <root level="info">

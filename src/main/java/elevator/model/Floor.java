@@ -80,12 +80,12 @@ public class Floor implements EventReactor {
 
             if (arrivalTime < clock.get()) {
                 toLoad.forEach(passenger -> {
-                    bus.fire(EventTopic.PASSENGER, new Event.MissedConnection(this.getId(), elevatorId, passenger));
+                    bus.fireTopic(EventTopic.PASSENGER, new Event.MissedConnection(this.getId(), elevatorId, passenger));
                 });
             }
             else {
                 toLoad.forEach(passenger -> {
-                    bus.fire(EventTopic.PASSENGER, new Event.LoadPassenger(this.getId(), elevatorId, passenger));
+                    bus.fireTopic(EventTopic.PASSENGER, new Event.LoadPassenger(this.getId(), elevatorId, passenger));
                 });
             }
             toLoad.clear();
@@ -102,7 +102,7 @@ public class Floor implements EventReactor {
             assert (elevatorId < elevators.size());
             elevators.get(elevatorId).add(passenger);
 
-            bus.fire(EventTopic.PASSENGER, new Event.PassengerWaiting(passenger, this.id, elevatorId));
+            bus.fireTopic(EventTopic.PASSENGER, new Event.PassengerWaiting(passenger, this.id, elevatorId));
         }
     }
 }

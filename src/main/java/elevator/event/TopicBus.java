@@ -52,7 +52,7 @@ public class TopicBus implements RunnableEventBus {
      * @param reactor The object that will be notified of incoming events
      */
     @Override
-    public void attach(EnumSet<EventTopic> topics, EventReactor reactor) {
+    public void attachTopic(EnumSet<EventTopic> topics, EventReactor reactor) {
         assert (topics.contains(topic));
 
         while (true) {
@@ -66,7 +66,7 @@ public class TopicBus implements RunnableEventBus {
     }
 
     @Override
-    public void fire(EventTopic topic, Event event) {
+    public void fireTopic(EventTopic topic, Event event) {
         if (this.topic.equals(topic)) {
             try {
                 queue.put(event);
@@ -74,7 +74,7 @@ public class TopicBus implements RunnableEventBus {
                 log.warn("Interrupted while firing event", e);
             }
         } else {
-            parent.fire(topic, event);
+            parent.fireTopic(topic, event);
         }
     }
 

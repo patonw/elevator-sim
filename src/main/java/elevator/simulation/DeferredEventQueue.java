@@ -49,7 +49,7 @@ public class DeferredEventQueue implements EventReactor {
 
             while (!events.isEmpty() && (events.peek().getTime() <= tick.getValue())) {
                 final DeferredEvent deferred = events.remove();
-                bus.fire(deferred.getTopic(), deferred.getEvent());
+                bus.fireTopic(deferred.getTopic(), deferred.getEvent());
             }
         }
     }

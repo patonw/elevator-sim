@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class App implements EventEmitter, EventReactor {
     private static final Logger log = LoggerFactory.getLogger(App.class);
+    public static final String CHRONICLE_DIR = "/tmp/elevator";
 
     private final int NUM_WORKERS = 16;
     private final int TICK_RATE = 100;
@@ -67,8 +68,12 @@ public class App implements EventEmitter, EventReactor {
                 .scheduler(sched)
                 .build();
 
-        LoggingEventListener console = new LoggingEventListener(log);
-        bus.attach(console);
+//        LoggingEventListener console = new LoggingEventListener(log);
+//        bus.attach(console);
+// Monitor event stream from another process using Chronicle Queue:
+        ChronicleAppenderListener chronicle = new ChronicleAppenderListener(CHRONICLE_DIR);
+        bus.attach(chronicle);
+
         bus.attach(new WatchdogReactor());
 
         bus.attach(this); // This is also a listener for stress test monitoring
@@ -82,10 +87,12 @@ public class App implements EventEmitter, EventReactor {
     @Override
     public void onEvent(EventBus me, Event evt) {
         if (evt instanceof Event.DropPassenger) {
-            log.info("Passengers served so far {}/{}", drops.incrementAndGet(), reqs.get());
+            drops.incrementAndGet();
+//            log.info("Passengers served so far {}/{}", drops.get(), reqs.get());
         } else if (evt instanceof Event.ClockTick) {
             final long clock = ((Event.ClockTick) evt).getValue();
             if (clock % 30 == 0) {
+                log.info("*** Time is now {} ***", clock);
                 log.info("*** Event Bus Queue health: {} depth: {} ***", bus.health(), bus.getBacklog());
                 log.info("*** Passengers served {}/{}. Last drop scheduled for {} ***", drops.get(), reqs.get(), lastDrop.get());
                 final int idling = Stream.range(0, building.getNumElevators())
@@ -174,7 +181,7 @@ public class App implements EventEmitter, EventReactor {
             ;
 
             Passenger pass = new Passenger(dest.get());
-            app.bus.fire(EventTopic.SCHEDULING, new Event.ScheduleRequest(pass, origin.get()));
+            app.bus.fireTopic(EventTopic.SCHEDULING, new Event.ScheduleRequest(pass, origin.get()));
         });
 
         server.get("/stress", ctx -> {
@@ -208,7 +215,7 @@ public class App implements EventEmitter, EventReactor {
                         .getAsInt();
 
                 Passenger pass = new Passenger(dest);
-                app.bus.fire(EventTopic.SCHEDULING, new Event.ScheduleRequest(pass, orig));
+                app.bus.fireTopic(EventTopic.SCHEDULING, new Event.ScheduleRequest(pass, orig));
                 latch.countDown();
             }, 0, delay, TimeUnit.MICROSECONDS);
 
@@ -220,19 +227,6 @@ public class App implements EventEmitter, EventReactor {
             final long finished = System.currentTimeMillis();
             final long dt = finished - start;
             ctx.result(String.format("Finished submitting %d requests in %dms. Effective rate is %d/s%n", n.get(), dt, (n.get() * 1000) / dt));
-        });
-
-        server.sse("/sse", client -> {;
-            System.out.println("Client connected");
-
-            final ScheduledFuture<?> timer = executor.scheduleAtFixedRate(() -> {
-                client.sendEvent("scheduled", "Hello, SSE");
-            }, 0, 2, TimeUnit.SECONDS);
-
-            client.onClose(() -> {
-                timer.cancel(false);
-                System.out.println("Client disconnected");
-            });
         });
 
         task.get();

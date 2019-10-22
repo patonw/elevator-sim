@@ -119,17 +119,17 @@ public class Building implements Cloneable {
                 Building clone = (Building) result.clone();
                 EventBus bus = clone.bus;
                 bus.attach(clone.eventQueue);
-                bus.attach(EnumSet.of(EventTopic.DEFAULT, EventTopic.SCHEDULING), clone.scheduler);
+                bus.attachTopic(EnumSet.of(EventTopic.DEFAULT, EventTopic.SCHEDULING), clone.scheduler);
 
                 // TODO expose builders
-                bus.attach(EnumSet.of(EventTopic.SCHEDULING), rejectionHandler);
-                bus.attach(EnumSet.of(EventTopic.PASSENGER), reschedReactor);
+                bus.attachTopic(EnumSet.of(EventTopic.SCHEDULING), rejectionHandler);
+                bus.attachTopic(EnumSet.of(EventTopic.PASSENGER), reschedReactor);
                 reactors.forEach(bus::attach);
 
                 clone.floors = new Floor[numFloors];
                 range(0,numFloors).forEach(i -> {
                     clone.floors[i] = new Floor(i, numElevators);
-                    bus.attach(EnumSet.of(EventTopic.DEFAULT, EventTopic.ELEVATOR), clone.floors[i]);
+                    bus.attachTopic(EnumSet.of(EventTopic.DEFAULT, EventTopic.ELEVATOR), clone.floors[i]);
                 });
 
                 clone.elevators = new Elevator[numElevators];

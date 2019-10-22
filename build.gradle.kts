@@ -49,6 +49,8 @@ dependencies {
 //    implementation("org.slf4j:slf4j-api:1.7.25")
     implementation("ch.qos.logback:logback-classic:1.2.3")
 //    implementation("ch.qos.logback:logback-core:1.2.3")
+    implementation("net.openhft:chronicle-queue:5.17.25")
+    implementation("com.esotericsoftware:kryo:5.0.0-RC4")
 
 
     // Functional & reactive programming
@@ -65,6 +67,14 @@ task<Test>("integration") {
     description = "runs integration tests"
     testClassesDirs = sourceSets["integration"].output.classesDirs
     classpath = sourceSets["integration"].runtimeClasspath
+}
+
+task<JavaExec>("chronicleDump") {
+    group = "Execution"
+    description = "Dump the chronicle queue to console"
+    classpath = sourceSets["main"].runtimeClasspath
+    main = "net.openhft.chronicle.queue.DumpQueueMain"
+    args = listOf("/tmp/elevator")
 }
 
 application {

@@ -36,7 +36,7 @@ public class FlockSchedulerTest {
         scheduler.onEvent(bus, new Event.ScheduleRequest(p1, 4));
 
         ArgumentCaptor<Event> captor = ArgumentCaptor.forClass(Event.class);
-        Mockito.verify(bus, atLeastOnce()).fire(any(EventTopic.class), captor.capture());
+        Mockito.verify(bus, atLeastOnce()).fireTopic(any(EventTopic.class), captor.capture());
 
         assertThat(captor.getAllValues(), hasItem(instanceOf(Event.AssignRequest.class)));
         Option<Event.AssignRequest> assignment = List.ofAll(captor.getAllValues())
@@ -70,7 +70,7 @@ public class FlockSchedulerTest {
         // Elevator 2 arrives at Floor 20 at T=31, returns home at T=56 <-- winner
 
         ArgumentCaptor<Event> captor = ArgumentCaptor.forClass(Event.class);
-        Mockito.verify(bus, atLeastOnce()).fire(any(EventTopic.class), captor.capture());
+        Mockito.verify(bus, atLeastOnce()).fireTopic(any(EventTopic.class), captor.capture());
 
         assertThat(captor.getAllValues(), hasItem(instanceOf(Event.AssignRequest.class)));
         Option<Event.AssignRequest> assignment = List.ofAll(captor.getAllValues())

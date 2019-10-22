@@ -15,7 +15,7 @@ public interface RunnableEventBus extends EventBus {
      *
      * @return Number of events processed in this iteration.
      */
-    default int process() {
+    default int processAll() {
         return process(Integer.MAX_VALUE);
     }
 
