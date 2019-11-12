@@ -5,7 +5,7 @@ import elevator.simulation.DeferredEventQueue;
 import elevator.model.Building;
 import elevator.model.HomingElevatorFactory;
 import elevator.model.Passenger;
-import elevator.scheduling.FlockScheduler;
+import elevator.scheduling.GreedyScheduler;
 import elevator.scheduling.Scheduler;
 import elevator.simulation.FixedRateSimulator;
 import org.junit.Before;
@@ -15,7 +15,6 @@ import org.mockito.Mockito;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.MatcherAssert.*;
@@ -34,7 +33,7 @@ public class FlockSchedulingIntegration {
     @Before
     public void beforeTest() {
         queue = new DeferredEventQueue();
-        sched = new FlockScheduler();
+        sched = new GreedyScheduler();
         bus = new PartitionedEventBus();
         elevatorFactory = new HomingElevatorFactory(numFloors, homeFloors);
 

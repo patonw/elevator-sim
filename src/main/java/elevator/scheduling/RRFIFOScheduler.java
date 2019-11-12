@@ -4,6 +4,7 @@ import elevator.event.Event;
 import elevator.event.EventBus;
 import elevator.event.EventTopic;
 import elevator.model.Elevator;
+import elevator.model.Trajectory;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -28,8 +29,13 @@ public class RRFIFOScheduler implements Scheduler {
     }
 
     private void handleScheduleRequest(EventBus bus, Event.ScheduleRequest event) {
+        final int start = event.getStart();
+        final int dest = event.getDest();
         int assignee = ctr.getAndIncrement() % elevators.length;
 
-        bus.fireTopic(EventTopic.SCHEDULING, new Event.AssignRequest(event.getPassenger(), event.getStart(), assignee));
+        final Elevator elevator = elevators[assignee];
+        final Trajectory trajectory = elevator.getTrajectory().augment(start, dest);
+
+        bus.fireTopic(EventTopic.SCHEDULING, new Event.AssignRequest(event.getPassenger(), event.getStart(), assignee, trajectory.getTimeLeftOnTask(), trajectory.getEndTime()));
     }
 }

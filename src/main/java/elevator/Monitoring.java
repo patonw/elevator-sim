@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Monitoring {
     private static Logger log = LoggerFactory.getLogger("monitor.elevator.Monitoring"); // meh
-    public final static String CHRONICLE_DIR = App.CHRONICLE_DIR;
+    final static String CHRONICLE_DIR = App.CHRONICLE_DIR;
 
     private final ChronicleQueue queue;
     private final ExcerptTailer tailer;

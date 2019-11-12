@@ -21,7 +21,7 @@ import io.vavr.control.Option;
  * The augmented trajectory with the lowest timeUntilIdle will add the least to the global
  * timeUntilIdle if at all.
  */
-public class FlockScheduler implements Scheduler {
+public class GreedyScheduler implements Scheduler {
     private Elevator[] elevators;
 
     @Override

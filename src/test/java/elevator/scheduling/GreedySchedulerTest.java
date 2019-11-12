@@ -17,13 +17,13 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 
-public class FlockSchedulerTest {
+public class GreedySchedulerTest {
     @Test
     public void testAlreadyIncluded() {
         EventBus bus = Mockito.mock(EventBus.class);
         int[] homeFloors = {3, 17, 25};
 
-        FlockScheduler scheduler = new FlockScheduler();
+        GreedyScheduler scheduler = new GreedyScheduler();
         Elevator[] elevators = Stream.range(0, 3).map(i -> Mockito.mock(Elevator.class)).toJavaArray(Elevator.class);
 
         long currentTime = 20;
@@ -54,7 +54,7 @@ public class FlockSchedulerTest {
         EventBus bus = Mockito.mock(EventBus.class);
         int[] homeFloors = {3, 17, 25};
 
-        FlockScheduler scheduler = new FlockScheduler();
+        GreedyScheduler scheduler = new GreedyScheduler();
         Elevator[] elevators = Stream.range(0, 3).map(i -> Mockito.mock(Elevator.class)).toJavaArray(Elevator.class);
 
         long currentTime = 20;

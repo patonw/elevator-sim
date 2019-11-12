@@ -3,9 +3,12 @@
  */
 package elevator;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import elevator.event.*;
 import elevator.model.*;
-import elevator.scheduling.FlockScheduler;
+import elevator.scheduling.GreedyScheduler;
+import elevator.scheduling.RRFIFOScheduler;
 import elevator.scheduling.Scheduler;
 import elevator.simulation.DeferredEventQueue;
 import elevator.simulation.FixedRateSimulator;
@@ -25,12 +28,12 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class App implements EventEmitter, EventReactor {
     private static final Logger log = LoggerFactory.getLogger(App.class);
-    public static final String CHRONICLE_DIR = "/tmp/elevator";
 
-    private final int NUM_WORKERS = 16;
-    private final int TICK_RATE = 100;
-    private final int NUM_FLOORS = 2000;
-    private final int NUM_ELEVATORS = 200;
+    private static Config conf = ConfigFactory.load().getConfig("elevator.simulator");
+    static final String CHRONICLE_DIR = conf.getString("chronicle-dir");
+    private final int TICK_RATE = conf.getInt("tick-rate");
+    private final int NUM_FLOORS = conf.getInt("num-floors");
+    private final int NUM_ELEVATORS = conf.getInt("num-elevators");
     private int[] HOME_FLOORS;
 
     private DeferredEventQueue queue;
@@ -50,10 +53,23 @@ public class App implements EventEmitter, EventReactor {
         });
 
         queue = new DeferredEventQueue();
-        sched = new FlockScheduler();
-        bus = new PartitionedEventBus(2048)
-                .setTopicWorkers(EventTopic.SCHEDULING, NUM_WORKERS)
-                .setTopicWorkers(EventTopic.ELEVATOR, 4)
+
+        switch (conf.getString("scheduler")) {
+            case "greedy":
+                sched = new GreedyScheduler();
+                break;
+            case "rrfifo":
+            case "round-robin":
+            default:
+                sched = new RRFIFOScheduler();
+                break;
+        }
+
+        bus = new PartitionedEventBus(conf.getInt("event-bus.queue-depth"))
+                .setTopicWorkers(EventTopic.DEFAULT, conf.getInt("event-bus.workers.default"))
+                .setTopicWorkers(EventTopic.SCHEDULING, conf.getInt("event-bus.workers.scheduling"))
+                .setTopicWorkers(EventTopic.PASSENGER, conf.getInt("event-bus.workers.passenger"))
+                .setTopicWorkers(EventTopic.ELEVATOR, conf.getInt("event-bus.workers.elevator"))
                 .setTopicPriority(EventTopic.ELEVATOR, Thread.MAX_PRIORITY);
 
         elevatorFactory = new HomingElevatorFactory(NUM_FLOORS, HOME_FLOORS);
@@ -162,7 +178,7 @@ public class App implements EventEmitter, EventReactor {
         var task = app.start();
         final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
 
-        Javalin server = Javalin.create().start(7000);
+        Javalin server = Javalin.create().start(conf.getInt("listen-port"));
         task.thenAccept(vtry -> vtry.onSuccess(x -> {
             log.warn("??? I'm not sure how this happened but simulator shutdown spontaneously without an exception...");
             server.stop();

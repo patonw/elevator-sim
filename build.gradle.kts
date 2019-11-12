@@ -59,6 +59,7 @@ dependencies {
 
     // Web server
     implementation("io.javalin:javalin:3.5.0")
+    implementation("com.typesafe:config:1.4.0")
 }
 
 // TODO merge integration tests into coverage report

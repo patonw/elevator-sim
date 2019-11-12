@@ -93,7 +93,7 @@ The return to home feature can be disabled by replacing the `HomingElevatorFacto
 Currently the two available schedulers are:
 
 - RRFIFOScheduler: a round-robin scheduler that simply cycles through each elevator in a deterministic fashion
-- FlockScheduler: Algorithmically determines which elevator to assign the task to by `timeUntilIdle`
+- GreedyScheduler: Algorithmically determines which elevator to assign the task to by `timeUntilIdle`
 
 The scheduling criterion is to minimize the remaining time across all elevators in the building until the elevators return home,
 assuming that no further requests are made. The scheduler evaluates the possible trajectories for each elevator to fulfill a request
